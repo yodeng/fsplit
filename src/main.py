@@ -2,6 +2,7 @@
 # coding:utf-8
 
 import os
+import time
 import multiprocessing as mp
 
 
@@ -10,6 +11,7 @@ from collections import Counter
 from .src import *
 
 
+@timeRecord
 def main():
     args = parseArg()
     if args.mode == "index":
@@ -19,10 +21,10 @@ def main():
     outdir = args.output
     if not os.path.isdir(outdir):
         os.makedirs(outdir)
-    group = args.threads * 2
+    group = args.threads * 5
 
     barcode = {}
-    outfile = {"Unknow": os.path.join(outdir, "Unknow.fq.gz")}
+    outfile = {"Unknow": os.path.join(outdir, "Unknow.fq")}
     with open(args.barcode) as fi:
         for line in fi:
             if not line.strip() or line.strip().startswith("#"):
@@ -30,8 +32,10 @@ def main():
             line = line.split()
             sn, bc = line[0], line[1]
             barcode[bc.encode()] = sn
-            outfile[sn] = os.path.join(outdir, sn+".fq.gz")
-
+            outfile[sn] = os.path.join(outdir, sn+".fq")
+    if args.output_gzip:
+        for sn in outfile:
+            outfile[sn] += ".gz"
     idx = FastqIndex.getIndexPos(infq)
     size = int(math.ceil(len(idx)/float(group)))
     l = len(idx)
@@ -50,13 +54,13 @@ def main():
     count = 0
     with MultiZipHandle(**outfile) as fh:
         while count < ivs:
-            res = outQ.get()
-            if res is None:
-                count += 1
-            else:
-                sn, name, seq, flag, qual = res
-                fh[sn].writelines([name, seq, flag, qual])
-                sms[sn] += 1
+            res_p = outQ.get()
+            for sn, seqs in res_p.items():
+                h = fh[sn]
+                sms[sn] += len(seqs) / 4
+                for seq in seqs:
+                    h.write(seq)
+            count += 1
     total_seq = sum(list(sms.values()))
     for sn in sorted(barcode.values()):
         num = sms[sn]

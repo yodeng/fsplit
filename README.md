@@ -43,11 +43,13 @@ fsplit index -i test.fastq.gz
 
 | 参数          | 描述                                                       |
 | ------------- | ---------------------------------------------------------- |
+| -i/--input    | 输入的fastq文件                                            |
 | -b/--barcode  | barcode信息文件，两列，第一列为样本名，第二列为barcode序列 |
 | -m/--mismatch | barcode拆分时运行的错配碱基数，默认0，不允许错配，         |
 | -t/--threads  | 拆分运行的cpu核数，默认2                                   |
 | -o/--output   | 结果输出目录，不存在会自动创建                             |
 | -d/--drup     | 输出结果中是否去除barcode序列，默认不去除                  |
+| --output-gzip | 输出gzip压缩的fastq文件                                    |
 
 
 
@@ -74,4 +76,3 @@ fsplit split -i example/test.fastq.gz -b example/bc.info -o test
 输出：
 
 + test/xxx.fastq.gz
-

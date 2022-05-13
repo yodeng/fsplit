@@ -4,9 +4,12 @@
 import os
 import sys
 import math
+import time
 import gzip
 import argparse
 import editdistance
+
+from .version import __version__
 
 
 class Zopen(object):
@@ -33,10 +36,11 @@ class MultiZipHandle(object):
         self.handler = {}
 
     def __enter__(self):
-
         for sn, f in self.info.items():
-            self.handler[sn] = gzip.open(f, "wb")
-
+            if f.endswith(".gz"):
+                self.handler[sn] = gzip.open(f, "wb")
+            else:
+                self.handler[sn] = open(f, "wb")
         return self.handler
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -128,6 +132,8 @@ def parseArg():
     general_parser.add_argument("mode", metavar=mode, choices=subargs)
     general_parser.add_argument("-i", "--input", type=str, help="input fastq file, required",
                                 required=True, metavar="<str>")
+    general_parser.add_argument('-v', '--version',
+                                action='version', version="v" + __version__)
     if mode == "index":
         parser_index = parser.add_argument_group("Options")
     elif mode == "split":
@@ -142,16 +148,20 @@ def parseArg():
                                   type=str, required=True, metavar="<str>")
         parser_split.add_argument("-d", '--drup',   action='store_true',
                                   help="drup barcode sequence in output if set",  default=False)
+        parser_split.add_argument("--output-gzip",   action='store_true',
+                                  help="gzip output fastq file, this will make your process slower", default=False)
     return parser.parse_args()
 
 
-def splitFastq(fq, s, e, outQ, barcode, mis, drup=False):
+def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False):
     drup_pos = dict.fromkeys(barcode.keys(), 0)
     if drup:
         for bc in barcode:
             drup_pos[bc] = len(bc)
+    bc_len = {b: len(b) for b in barcode.keys()}
     with Zopen(fq) as fi:
         fi.seek(s)
+        out = {}
         while True:
             if fi.tell() > e:
                 break
@@ -160,16 +170,25 @@ def splitFastq(fq, s, e, outQ, barcode, mis, drup=False):
             flag = fi.readline()
             qual = fi.readline()
             for b in barcode:
-                bc_len = len(b)
-                bar = seq[:bc_len]
+                bl = bc_len[b]
+                bar = seq[:bl]
                 dis = editdistance.eval(b, bar)
                 if dis <= mis:
                     dp = drup_pos[b]
                     sn = barcode[b]
                     seq = seq[dp:]
                     qual = qual[dp:]
-                    outQ.put((sn, name, seq, flag, qual))
+                    out.setdefault(sn, []).extend((name, seq, flag, qual))
                     break
             else:
-                outQ.put(("Unknow", name, seq, flag, qual))
-        outQ.put(None)
+                out.setdefault("Unknow", []).extend((name, seq, flag, qual))
+        outQ.put(out)
+
+
+def timeRecord(func):
+    def wrapper(*args, **kwargs):
+        s = time.time()
+        value = func(*args, **kwargs)
+        sys.stdout.write("\nTime elapse: %d sec.\n" % int(time.time() - s))
+        return value
+    return wrapper
