@@ -63,17 +63,20 @@ class FastqIndex(object):
     def index_pos(self):
         idx = []
         with open(self.fai) as fi:
-            h = fi.readline().split()
+            h = fi.readline().strip()
+            if h.isdigit():
+                idx.append(0)
+                for line in fi:
+                    idx.append(line.strip())
+                return idx
+            h = h.split()
             if len(h) == 6:
+                idx.append(0)
                 e = int(h[5])
-            idx.append(0)
-            for line in fi:
-                line = line.split()
-                if len(line) == 6:
+                for line in fi:
+                    line = line.split()
                     idx.append(e+int(line[4]))
                     e = int(line[5])
-                else:
-                    idx.append(int(line[0]))
         return idx
 
     def index_crt(self):
@@ -180,8 +183,8 @@ def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False):
                     qual = qual[dp:]
                     out.setdefault(sn, []).extend((name, seq, flag, qual))
                     break
-            else:
-                out.setdefault("Unknow", []).extend((name, seq, flag, qual))
+            # else:
+            #    out.setdefault("Unknow", []).extend((name, seq, flag, qual))
         outQ.put(out)
 
 
