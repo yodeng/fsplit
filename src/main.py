@@ -24,7 +24,8 @@ def main():
     group = args.threads * 5
 
     barcode = {}
-    outfile = {"Unknow": os.path.join(outdir, "Unknow.fq")}
+    # outfile = {"Unknow": os.path.join(outdir, "Unknow.fq")}
+    outfile = {}
     with open(args.barcode) as fi:
         for line in fi:
             if not line.strip() or line.strip().startswith("#"):
@@ -61,7 +62,8 @@ def main():
                 for seq in seqs:
                     h.write(seq)
             count += 1
-    total_seq = sum(list(sms.values()))
+    total_seq = l
+    sms["Unknow"] = total_seq - sum(sms.values())
     for sn in sorted(barcode.values()):
         num = sms[sn]
         sys.stdout.write("%s: %d(%.2f%%)\n" %
