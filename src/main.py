@@ -14,6 +14,8 @@ from .src import *
 @timeRecord
 def main():
     args = parseArg()
+    if not os.path.isfile(args.input):
+        sys.exit("No such file %s" % args.input)
     if args.mode == "index":
         FastqIndex.createindex(args.input)
         return

@@ -7,20 +7,27 @@ import math
 import time
 import gzip
 import argparse
+import subprocess
 import editdistance
 
 from .version import __version__
 
 
 class Zopen(object):
-    def __init__(self, name,  mode="rb"):
+    def __init__(self, name,  mode="rb", gzip=False):
         self.name = name
         self.mode = mode
+        self.gzip = gzip
         self.handler = None
 
     def __enter__(self):
         if self.name.endswith(".gz"):
-            self.handler = gzip.open(self.name, self.mode)
+            if self.gzip:
+                p = subprocess.Popen(
+                    ["gzip", "-c", "-d", self.name], stdout=subprocess.PIPE)
+                self.handler = p.stdout
+            else:
+                self.handler = gzip.open(self.name, self.mode)
         else:
             self.handler = open(self.name, self.mode)
         return self.handler
@@ -80,16 +87,12 @@ class FastqIndex(object):
         return idx
 
     def index_crt(self):
-        with Zopen(self.fq) as fi, open(self.fai, "w") as fo:
-            while True:
-                cur = fi.tell()
-                _ = fi.readline()
-                if cur == fi.tell():
-                    break
-                fo.write("%d\n" % cur)
-                fi.readline()
-                fi.readline()
-                fi.readline()
+        with Zopen(self.fq, gzip=True) as fi, open(self.fai, "w") as fo:
+            cur = 0
+            for n, line in enumerate(fi):
+                if n % 4 == 0:
+                    fo.write("%d\n" % cur)
+                cur += len(line)
 
     @classmethod
     def createindex(cls, fq=""):
@@ -102,17 +105,13 @@ class FastqIndex(object):
         if os.path.isfile(fqi.fai):
             return fqi.index_pos()
         idx = []
-        with Zopen(fqi.fq) as fi, open(fqi.fai, "w") as fo:
-            while True:
-                cur = fi.tell()
-                _ = fi.readline()
-                if cur == fi.tell():
-                    break
-                fo.write("%d\n" % cur)
-                idx.append(cur)
-                fi.readline()
-                fi.readline()
-                fi.readline()
+        with Zopen(fqi.fq, gzip=True) as fi, open(fqi.fai, "w") as fo:
+            cur = 0
+            for n, line in enumerate(fi):
+                if n % 4 == 0:
+                    fo.write("%d\n" % cur)
+                    idx.append(cur)
+                cur += len(line)
         return idx
 
 
