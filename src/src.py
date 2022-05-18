@@ -7,12 +7,14 @@ import math
 import time
 import json
 import gzip
+import random
 import logging
 import argparse
 import subprocess
 import editdistance
 
 from .version import __version__
+from .bcl import *
 from . import sh
 
 
@@ -69,6 +71,7 @@ class FastqIndex(object):
     def __init__(self, fastqfile=""):
         self.fq = os.path.abspath(fastqfile)
         self.fai = self.fq + ".fai"
+        self.std = list(range(100))
 
     def index_pos(self):
         idx = []
@@ -79,7 +82,7 @@ class FastqIndex(object):
                 for line in fi:
                     idx.append(line.strip())
                 self.logs.info(
-                    "read fastq index (%s) done, %d sequences for input.", self.fai, len(idx))
+                    "read fastq index (%s) done", self.fai)
                 return idx
             h = h.split()
             if len(h) == 6:
@@ -90,16 +93,19 @@ class FastqIndex(object):
                     idx.append(e+int(line[4]))
                     e = int(line[5])
         self.logs.info(
-            "read fastq index (%s) done, %d sequences for input.", self.fai, len(idx))
+            "read fastq index (%s) done.", self.fai)
         return idx
 
     def index_crt(self):
         with Zopen(self.fq, gzip=True) as fi, open(self.fai, "w") as fo:
             cur = 0
+            fo.write("%d\n" % cur)
             for n, line in enumerate(fi):
                 if n % 4 == 0:
-                    fo.write("%d\n" % cur)
+                    if random.uniform(0,1) < 0.001:
+                        fo.write("%d\n" % cur)
                 cur += len(line)
+            fo.write("%d\n" % cur)
             self.logs.info("create fastq index (%s) done.", self.fai)
 
     @classmethod
@@ -115,11 +121,16 @@ class FastqIndex(object):
         idx = []
         with Zopen(fqi.fq, gzip=True) as fi, open(fqi.fai, "w") as fo:
             cur = 0
+            fo.write("%d\n" % cur)
+            idx.append(cur)
             for n, line in enumerate(fi):
                 if n % 4 == 0:
-                    fo.write("%d\n" % cur)
-                    idx.append(cur)
+                    if random.uniform(0,1) < 0.001:
+                        fo.write("%d\n" % cur)
+                        idx.append(cur)
                 cur += len(line)
+            fo.write("%d\n" % cur)
+            idx.append(cur)
             fqi.logs.info("create fastq index done.")
         return idx
 
@@ -157,21 +168,22 @@ def parseArg():
                                   help='barcode and sample file, required', required=True, metavar="<file>")
         parser_split.add_argument('-m', "--mismatch", help="mismatch allowed for barcode search, 0 by default",
                                   type=int, default=0, metavar="<int>")
-        parser_split.add_argument('-t', "--threads", help="threads core, 2 by default",
-                                  type=int, default=2, metavar="<int>")
+        parser_split.add_argument('-t', "--threads", help="threads core, 10 by default",
+                                  type=int, default=10, metavar="<int>")
         parser_split.add_argument('-o', "--output", help="output directory, required",
                                   type=str, required=True, metavar="<str>")
         parser_split.add_argument("-d", '--drup',   action='store_true',
                                   help="drup barcode sequence in output if set",  default=False)
         parser_split.add_argument('--bcl2fq', metavar="<str>",
                                   help="bcl2fastq path is necessary, if not set, auto detected")
-        parser_split.add_argument("--output-gzip",   action='store_true',
-                                  help="gzip output fastq file, this will make your process slower", default=False)
+        # parser_split.add_argument("--output-gzip",   action='store_true',
+        #                          help="gzip output fastq file, this will make your process slower", default=False)
     return parser.parse_args()
 
 
-def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False):
+def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False, outdir=""):
     drup_pos = dict.fromkeys(barcode.keys(), 0)
+    total = 0
     if drup:
         for bc in barcode:
             drup_pos[bc] = len(bc)
@@ -180,7 +192,7 @@ def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False):
         fi.seek(s)
         out = {}
         while True:
-            if fi.tell() > e:
+            if fi.tell() == e:
                 break
             name = fi.readline()
             seq = fi.readline()
@@ -199,7 +211,17 @@ def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False):
                     break
             # else:
             #    out.setdefault("Unknow", []).extend((name, seq, flag, qual))
-        outQ.put(out)
+            total += 1
+        snms = {}
+        snoutf = {}
+        multioutfile = {sn: os.path.join(
+            outdir, sn + "_%d-%d.fq" % (s, e)) for sn in out.keys()}
+        with MultiZipHandle(**multioutfile) as fh:
+            for sn, seqs in out.items():
+                snms[sn] = len(seqs)/4
+                for line in seqs:
+                    fh[sn].write(line)
+        outQ.put((total, snms, multioutfile))
 
 
 def timeRecord(func):
