@@ -5,12 +5,15 @@ import os
 import sys
 import math
 import time
+import json
 import gzip
+import logging
 import argparse
 import subprocess
 import editdistance
 
 from .version import __version__
+from . import sh
 
 
 class Zopen(object):
@@ -64,7 +67,7 @@ def chunk(lst, size=1, group=None):
 class FastqIndex(object):
 
     def __init__(self, fastqfile=""):
-        self.fq = fastqfile
+        self.fq = os.path.abspath(fastqfile)
         self.fai = self.fq + ".fai"
 
     def index_pos(self):
@@ -75,6 +78,8 @@ class FastqIndex(object):
                 idx.append(0)
                 for line in fi:
                     idx.append(line.strip())
+                self.logs.info(
+                    "read fastq index (%s) done, %d sequences for input.", self.fai, len(idx))
                 return idx
             h = h.split()
             if len(h) == 6:
@@ -84,6 +89,8 @@ class FastqIndex(object):
                     line = line.split()
                     idx.append(e+int(line[4]))
                     e = int(line[5])
+        self.logs.info(
+            "read fastq index (%s) done, %d sequences for input.", self.fai, len(idx))
         return idx
 
     def index_crt(self):
@@ -93,6 +100,7 @@ class FastqIndex(object):
                 if n % 4 == 0:
                     fo.write("%d\n" % cur)
                 cur += len(line)
+            self.logs.info("create fastq index (%s) done.", self.fai)
 
     @classmethod
     def createindex(cls, fq=""):
@@ -112,7 +120,12 @@ class FastqIndex(object):
                     fo.write("%d\n" % cur)
                     idx.append(cur)
                 cur += len(line)
+            fqi.logs.info("create fastq index done.")
         return idx
+
+    @property
+    def logs(self):
+        return logging.getLogger()
 
 
 def parseArg():
@@ -127,12 +140,12 @@ def parseArg():
     if mode == "index":
         des = "index fastq file for reading in multi processing, can be instead by `samtools fqidx <fqfile>`."
     else:
-        des = "split fastq by barcode."
+        des = "split sequence data by barcode."
     parser = argparse.ArgumentParser(
         description=des, prog=" ".join(sys.argv[0:2]))
     general_parser = parser.add_argument_group("General options")
     general_parser.add_argument("mode", metavar=mode, choices=subargs)
-    general_parser.add_argument("-i", "--input", type=str, help="input fastq file, required",
+    general_parser.add_argument("-i", "--input", type=str, help="input fastq file or BCL flowcell directory, required",
                                 required=True, metavar="<str>")
     general_parser.add_argument('-v', '--version',
                                 action='version', version="v" + __version__)
@@ -150,6 +163,8 @@ def parseArg():
                                   type=str, required=True, metavar="<str>")
         parser_split.add_argument("-d", '--drup',   action='store_true',
                                   help="drup barcode sequence in output if set",  default=False)
+        parser_split.add_argument('--bcl2fq', metavar="<str>",
+                                  help="bcl2fastq path is necessary, if not set, auto detected")
         parser_split.add_argument("--output-gzip",   action='store_true',
                                   help="gzip output fastq file, this will make your process slower", default=False)
     return parser.parse_args()
@@ -194,3 +209,49 @@ def timeRecord(func):
         sys.stdout.write("\nTime elapse: %d sec.\n" % int(time.time() - s))
         return value
     return wrapper
+
+
+def load_bcl_stats(j):
+    with open(j) as fi:
+        stat = json.load(fi)
+    info = stat["ConversionResults"][0]
+    out = []
+    for i in info["DemuxResults"]:
+        sn = i["SampleName"]
+        rdn = i["NumberReads"]
+        out.append((sn, rdn))
+    out.append(("Unknow", info["Undetermined"]["NumberReads"]))
+    return out
+
+
+def log(logfile=None, level="info"):
+    logger = logging.getLogger()
+    if level.lower() == "info":
+        logger.setLevel(logging.INFO)
+        f = logging.Formatter(
+            '[%(levelname)s %(asctime)s] %(message)s')
+    elif level.lower() == "debug":
+        logger.setLevel(logging.DEBUG)
+        f = logging.Formatter(
+            '[%(levelname)s %(threadName)s %(asctime)s %(funcName)s(%(lineno)d)] %(message)s')
+    if logfile is None:
+        h = logging.StreamHandler(sys.stdout)
+    else:
+        h = logging.FileHandler(logfile, mode='w')
+    h.setFormatter(f)
+    logger.addHandler(h)
+    return logger
+
+
+def call(cmd, run=True, verbose=False):
+    if not run:
+        if verbose:
+            print(cmd)
+        return
+    if verbose:
+        print(cmd)
+        subprocess.check_call(cmd, shell=True, stdout=sys.stdout,
+                              stderr=sys.stderr)
+    else:
+        with open(os.devnull, "w") as fo:
+            subprocess.check_call(cmd, shell=True, stdout=fo, stderr=fo)
