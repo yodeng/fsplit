@@ -1,0 +1,25 @@
+{% set data = load_setup_py_data() %}
+
+package:
+    name: fsplit
+    version: {{ data.get('version') }}
+
+build:
+    number: 0
+    string: py3
+    script: python setup.py install --single-version-externally-managed --record=record.txt
+
+source:
+    path: ..
+
+requirements:
+    host:
+        - python >=3.7,<3.8.0a0
+        - pip 20.3.3
+    run:
+        - bcl2fastq
+        - editdistance
+
+about:
+    home: https://github.com/yodeng/fsplit
+    license: BSD
