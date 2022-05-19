@@ -1,9 +1,10 @@
 import os
-import sh
 import sys
 import json
 import logging
 import subprocess
+
+from .utils import which
 
 
 class BCL(object):
@@ -14,7 +15,7 @@ class BCL(object):
         self.mis = str(mis)
         self.index = 1
         self.nproc = str(cpu)
-        self.bcl2fastq = bcl2fastq or sh.which("bcl2fastq")
+        self.bcl2fastq = bcl2fastq or which("bcl2fastq")
         self.samplesheet = os.path.join(self.outdir, "sample-sheet.csv")
 
     def create_samplesheet(self):
