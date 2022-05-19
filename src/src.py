@@ -3,19 +3,17 @@
 
 import os
 import sys
-import math
-import time
-import json
 import gzip
-import random
 import logging
 import argparse
 import subprocess
 import editdistance
 
+from random import uniform
+
 from .version import __version__
 from .bcl import *
-from . import sh
+from .utils import *
 
 
 class Zopen(object):
@@ -27,7 +25,7 @@ class Zopen(object):
 
     def __enter__(self):
         if self.name.endswith(".gz"):
-            if self.gzip:
+            if self.gzip and "r" in self.mode:
                 p = subprocess.Popen(
                     ["gzip", "-c", "-d", self.name], stdout=subprocess.PIPE)
                 self.handler = p.stdout
@@ -42,36 +40,11 @@ class Zopen(object):
             self.handler.close()
 
 
-class MultiZipHandle(object):
-    def __init__(self, **infiles):
-        self.info = infiles
-        self.handler = {}
-
-    def __enter__(self):
-        for sn, f in self.info.items():
-            if f.endswith(".gz"):
-                self.handler[sn] = gzip.open(f, "wb")
-            else:
-                self.handler[sn] = open(f, "wb")
-        return self.handler
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        for sn, h in self.handler.items():
-            h.close()
-
-
-def chunk(lst, size=1, group=None):
-    if group:
-        size = int(math.ceil(len(lst)/float(group)))
-    return [lst[i:i + size] for i in range(0, len(lst), size)]
-
-
 class FastqIndex(object):
 
     def __init__(self, fastqfile=""):
         self.fq = os.path.abspath(fastqfile)
         self.fai = self.fq + ".fai"
-        self.std = list(range(100))
 
     def index_pos(self):
         idx = []
@@ -102,7 +75,7 @@ class FastqIndex(object):
             fo.write("%d\n" % cur)
             for n, line in enumerate(fi):
                 if n % 4 == 0:
-                    if random.uniform(0,1) < 0.001:
+                    if uniform(0, 1) < 0.001:
                         fo.write("%d\n" % cur)
                 cur += len(line)
             fo.write("%d\n" % cur)
@@ -125,7 +98,7 @@ class FastqIndex(object):
             idx.append(cur)
             for n, line in enumerate(fi):
                 if n % 4 == 0:
-                    if random.uniform(0,1) < 0.001:
+                    if uniform(0, 1) < 0.001:
                         fo.write("%d\n" % cur)
                         idx.append(cur)
                 cur += len(line)
@@ -176,12 +149,12 @@ def parseArg():
                                   help="drup barcode sequence in output if set",  default=False)
         parser_split.add_argument('--bcl2fq', metavar="<str>",
                                   help="bcl2fastq path is necessary, if not set, auto detected")
-        # parser_split.add_argument("--output-gzip",   action='store_true',
-        #                          help="gzip output fastq file, this will make your process slower", default=False)
+        parser_split.add_argument("--output-gzip",   action='store_true',
+                                  help="gzip output fastq file, this will make your process slower", default=False)
     return parser.parse_args()
 
 
-def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False, outdir=""):
+def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False, outfile=None, filelock=None):
     drup_pos = dict.fromkeys(barcode.keys(), 0)
     total = 0
     if drup:
@@ -214,66 +187,10 @@ def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False, outdir=""):
             total += 1
         snms = {}
         snoutf = {}
-        multioutfile = {sn: os.path.join(
-            outdir, sn + "_%d-%d.fq" % (s, e)) for sn in out.keys()}
-        with MultiZipHandle(**multioutfile) as fh:
-            for sn, seqs in out.items():
-                snms[sn] = len(seqs)/4
-                for line in seqs:
-                    fh[sn].write(line)
-        outQ.put((total, snms, multioutfile))
-
-
-def timeRecord(func):
-    def wrapper(*args, **kwargs):
-        s = time.time()
-        value = func(*args, **kwargs)
-        sys.stdout.write("\nTime elapse: %d sec.\n" % int(time.time() - s))
-        return value
-    return wrapper
-
-
-def load_bcl_stats(j):
-    with open(j) as fi:
-        stat = json.load(fi)
-    info = stat["ConversionResults"][0]
-    out = []
-    for i in info["DemuxResults"]:
-        sn = i["SampleName"]
-        rdn = i["NumberReads"]
-        out.append((sn, rdn))
-    out.append(("Unknow", info["Undetermined"]["NumberReads"]))
-    return out
-
-
-def log(logfile=None, level="info"):
-    logger = logging.getLogger()
-    if level.lower() == "info":
-        logger.setLevel(logging.INFO)
-        f = logging.Formatter(
-            '[%(levelname)s %(asctime)s] %(message)s')
-    elif level.lower() == "debug":
-        logger.setLevel(logging.DEBUG)
-        f = logging.Formatter(
-            '[%(levelname)s %(threadName)s %(asctime)s %(funcName)s(%(lineno)d)] %(message)s')
-    if logfile is None:
-        h = logging.StreamHandler(sys.stdout)
-    else:
-        h = logging.FileHandler(logfile, mode='w')
-    h.setFormatter(f)
-    logger.addHandler(h)
-    return logger
-
-
-def call(cmd, run=True, verbose=False):
-    if not run:
-        if verbose:
-            print(cmd)
-        return
-    if verbose:
-        print(cmd)
-        subprocess.check_call(cmd, shell=True, stdout=sys.stdout,
-                              stderr=sys.stderr)
-    else:
-        with open(os.devnull, "w") as fo:
-            subprocess.check_call(cmd, shell=True, stdout=fo, stderr=fo)
+        for sn, seqs in out.items():
+            with filelock[sn]:
+                with Zopen(outfile[sn], "ab") as fo:
+                    snms[sn] = len(seqs)/4
+                    for line in seqs:
+                        fo.write(line)
+        outQ.put((total, snms))
