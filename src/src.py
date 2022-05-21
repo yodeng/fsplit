@@ -7,9 +7,9 @@ import gzip
 import logging
 import argparse
 import subprocess
-import editdistance
 
 from random import uniform
+from Levenshtein import distance
 
 from .version import __version__
 from .bcl import *
@@ -148,7 +148,7 @@ def parseArg():
         parser_split.add_argument("-d", '--drup',   action='store_true',
                                   help="drup barcode sequence in output if set",  default=False)
         parser_split.add_argument('--bcl2fq', metavar="<str>",
-                                  help="bcl2fastq path is necessary, if not set, auto detected")
+                                  help="bcl2fastq path if necessary, if not set, auto detected")
         parser_split.add_argument("--output-gzip",   action='store_true',
                                   help="gzip output fastq file, this will make your process slower", default=False)
     return parser.parse_args()
@@ -161,9 +161,9 @@ def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False, outfile=None, fileloc
         for bc in barcode:
             drup_pos[bc] = len(bc)
     bc_len = {b: len(b) for b in barcode.keys()}
+    out = {}
     with Zopen(fq) as fi:
         fi.seek(s)
-        out = {}
         while True:
             if fi.tell() == e:
                 break
@@ -174,7 +174,7 @@ def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False, outfile=None, fileloc
             for b in barcode:
                 bl = bc_len[b]
                 bar = seq[:bl]
-                dis = editdistance.eval(b, bar)
+                dis = distance(b, bar)
                 if dis <= mis:
                     dp = drup_pos[b]
                     sn = barcode[b]
@@ -185,12 +185,11 @@ def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False, outfile=None, fileloc
             # else:
             #    out.setdefault("Unknow", []).extend((name, seq, flag, qual))
             total += 1
-        snms = {}
-        snoutf = {}
-        for sn, seqs in out.items():
-            with filelock[sn]:
-                with Zopen(outfile[sn], "ab") as fo:
-                    snms[sn] = len(seqs)/4
-                    for line in seqs:
-                        fo.write(line)
-        outQ.put((total, snms))
+    snms = {}
+    for sn, seqs in out.items():
+        with filelock[sn]:
+            with Zopen(outfile[sn], "ab") as fo:
+                snms[sn] = len(seqs)/4
+                for line in seqs:
+                    fo.write(line)
+    outQ.put((total, snms))

@@ -20,7 +20,7 @@ setup(
     author_email="yodeng@tju.edu.cn",
     url="",
     license="BSD",
-    install_requires=["editdistance"],
+    install_requires=["python-Levenshtein"],
     python_requires='>=2.7.10, <=3.11',
     long_description=getdes(),
     long_description_content_type='text/markdown',
