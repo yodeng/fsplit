@@ -14,11 +14,11 @@ source:
 
 requirements:
     host:
-        - python >=3.7,<3.8.0a0
-        - pip 20.3.3
+        - python
+        - pip
     run:
         - bcl2fastq
-        - editdistance
+        - python-levenshtein
 
 about:
     home: https://github.com/yodeng/fsplit

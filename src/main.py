@@ -16,7 +16,7 @@ def main():
     args = parseArg()
     infq = args.input
     if not os.path.exists(infq):
-        IOError("No such file or directory: %s" % infq)
+        raise IOError("No such file or directory: %s" % infq)
     logs.info("start fsplit")
     if args.mode == "index":
         FastqIndex.createindex(args.input)
