@@ -9,7 +9,6 @@ import argparse
 import subprocess
 
 from random import uniform
-from Levenshtein import distance
 
 from .version import __version__
 from .bcl import *
@@ -160,7 +159,6 @@ def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False, outfile=None, fileloc
     if drup:
         for bc in barcode:
             drup_pos[bc] = len(bc)
-    bc_len = {b: len(b) for b in barcode.keys()}
     out = {}
     with Zopen(fq) as fi:
         fi.seek(s)
@@ -172,10 +170,13 @@ def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False, outfile=None, fileloc
             flag = fi.readline()
             qual = fi.readline()
             for b in barcode:
-                bl = bc_len[b]
-                bar = seq[:bl]
-                dis = distance(b, bar)
-                if dis <= mis:
+                d = 0
+                for n, i in enumerate(b):
+                    if i != seq[n]:
+                        d += 1
+                    if d > mis:
+                        break
+                else:
                     dp = drup_pos[b]
                     sn = barcode[b]
                     seq = seq[dp:]
