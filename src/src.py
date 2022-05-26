@@ -64,6 +64,8 @@ class FastqIndex(object):
                     line = line.split()
                     idx.append(e+int(line[4]))
                     e = int(line[5])
+                else:
+                    idx.append(e+int(line[4]))
         self.logs.info(
             "read fastq index (%s) done.", self.fai)
         return idx
