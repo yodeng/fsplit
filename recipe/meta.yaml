@@ -18,7 +18,6 @@ requirements:
         - pip
     run:
         - bcl2fastq
-        - python-levenshtein
 
 about:
     home: https://github.com/yodeng/fsplit
