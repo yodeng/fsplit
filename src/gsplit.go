@@ -20,7 +20,7 @@ type SplitFlags struct {
 	Mismatch    int    `hflag:"--mismatch, -m; default: 0; usage: mismatch allowed for barcode search, 0 by default"`
 	Output      string `hflag:"--output, -o; required; usage: output directory, required"`
 	Drup        bool   `hflag:"--drup, -d; default: false; usage: drup barcode sequence in output if set"`
-	Gzout       bool   `hflag:"--output-gzip, -z; default: false; usage: gzip output fastq file, default not"`
+	Nogz        bool   `hflag:"--no-gzip, -n; default: false; usage: do not gzip output fastq file"`
 }
 
 func checkError(err error) {
@@ -135,7 +135,7 @@ func main() {
 		sn, bc := line_s[0], line_s[1]
 		barcode[bc] = sn
 		outf := args.Output + "/" + sn + ".fq"
-		if args.Gzout {
+		if !args.Nogz {
 			outf += ".gz"
 		}
 		fo, _ := xopen.Wopen(outf)
@@ -197,6 +197,7 @@ func main() {
 		checkError(err)
 	}
 	drup_pos := make(map[string]int, 10)
+	samples := []string{}
 	for {
 		line, err := bcf.ReadString('\n')
 		if err == io.EOF {
@@ -206,8 +207,9 @@ func main() {
 		line_s := reg.Split(strings.TrimSpace(line), -1)
 		sn, bc := line_s[0], line_s[1]
 		barcode[bc] = sn
+		samples = append(samples, sn)
 		outf := args.Output + "/" + sn + ".fq"
-		if args.Gzout {
+		if !args.Nogz {
 			outf += ".gz"
 		}
 		if args.Drup {
@@ -225,6 +227,8 @@ func main() {
 	defer r.Close()
 	seq := make([]string, 4, 4)
 	linefo := 0
+	sms := make(map[string]int, len(barcode))
+	total := 0
 	for {
 		line, err := r.ReadString('\n')
 		if err == io.EOF {
@@ -246,16 +250,25 @@ func main() {
 				}
 				seq[1] = seq[1][drup_pos[b]:]
 				seq[3] = seq[3][drup_pos[b]:]
+				sms[sn] += 1
 				for _, line := range seq {
 					fout[sn].WriteString(line)
 				}
 				break BCLOOP
 			}
+			total += 1
 			seq = make([]string, 4, 4)
 		}
 		linefo++
 	}
-
+	fmt.Println()
+	snm := 0
+	for _, sn := range samples {
+		count := sms[sn]
+		snm += count
+		fmt.Printf("%v: %v(%.2f%%)\n", sn, count, float64(count)/float64(total)*100)
+	}
+	fmt.Printf("Unknow: %v(%.2f%%)\n", total-snm, float64(total-snm)/float64(total)*100)
 	d := time.Since(t)
-	fmt.Printf("Time elapse: %v sec.\n", d)
+	fmt.Printf("\nTime elapse: %v sec.\n", d)
 }
