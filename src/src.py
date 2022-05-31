@@ -142,8 +142,8 @@ def parseArg():
                                   help='barcode and sample file, required', required=True, metavar="<file>")
         parser_split.add_argument('-m', "--mismatch", help="mismatch allowed for barcode search, 0 by default",
                                   type=int, default=0, metavar="<int>")
-        parser_split.add_argument('-t', "--threads", help="threads core, 10 by default",
-                                  type=int, default=10, metavar="<int>")
+        # parser_split.add_argument('-t', "--threads", help="threads core, 10 by default",
+        #                           type=int, default=10, metavar="<int>")
         parser_split.add_argument('-o', "--output", help="output directory, required",
                                   type=str, required=True, metavar="<str>")
         parser_split.add_argument("-d", '--drup',   action='store_true',
