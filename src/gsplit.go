@@ -221,11 +221,20 @@ func main() {
 		defer fo.Close()
 		fout[line_s[0]] = fo
 	}
+	/*
+		unkonwfile := args.Output + "/" + "Unknow" + ".fq"
+		if !args.Nogz {
+			unkonwfile += ".gz"
+		}
+		unfo, _ := xopen.Wopen(unkonwfile)
+		defer unfo.Close()
+		fout["Unknow"] = unfo
+	*/
 	mis := args.Mismatch
 	r, err := xopen.Ropen(args.Fqfile)
 	checkError(err)
 	defer r.Close()
-	seq := make([]string, 4, 4)
+	seq := [4]string{}
 	linefo := 0
 	sms := make(map[string]int, len(barcode))
 	total := 0
@@ -236,6 +245,7 @@ func main() {
 		}
 		i := linefo % 4
 		seq[i] = line
+		// unknow := true
 		if i == 3 {
 		BCLOOP:
 			for b, sn := range barcode {
@@ -248,6 +258,7 @@ func main() {
 						continue BCLOOP
 					}
 				}
+				// unknow = false
 				seq[1] = seq[1][drup_pos[b]:]
 				seq[3] = seq[3][drup_pos[b]:]
 				sms[sn] += 1
@@ -256,8 +267,15 @@ func main() {
 				}
 				break BCLOOP
 			}
+			/*
+				if unknow {
+					for _, line := range seq {
+						fout["Unknow"].WriteString(line)
+					}
+				}
+			*/
 			total += 1
-			seq = make([]string, 4, 4)
+			seq = [4]string{}
 		}
 		linefo++
 	}
