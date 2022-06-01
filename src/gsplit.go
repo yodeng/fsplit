@@ -14,13 +14,13 @@ import (
 )
 
 type SplitFlags struct {
-	Fqfile      string `hflag:"--input, -i; required; usage: input fastq file, *.gz/xz/zst or uncompress allowed, required"`
-	Barcodefile string `hflag:"--barcode, -b; required; usage: barcode and sample file, required"`
-	Threads     int    `hflag:"--threads, -t; default: 10; usage: threads core, 10 by default"`
-	Mismatch    int    `hflag:"--mismatch, -m; default: 0; usage: mismatch allowed for barcode search, 0 by default"`
-	Output      string `hflag:"--output, -o; required; usage: output directory, required"`
-	Drup        bool   `hflag:"--drup, -d; default: false; usage: drup barcode sequence in output if set"`
-	Nogz        bool   `hflag:"--no-gzip, -n; default: false; usage: do not gzip output fastq file"`
+	Fqfile      []string `hflag:"--input, -i; required; usage: input fastq file, *.gz/xz/zst or uncompress allowed, multi-input call be separated by ',', required"`
+	Barcodefile string   `hflag:"--barcode, -b; required; usage: barcode and sample file, required"`
+	Threads     int      `hflag:"--threads, -t; default: 10; usage: threads core, 10 by default"`
+	Mismatch    int      `hflag:"--mismatch, -m; default: 0; usage: mismatch allowed for barcode search, 0 by default"`
+	Output      string   `hflag:"--output, -o; required; usage: output directory, required"`
+	Drup        bool     `hflag:"--drup, -d; default: false; usage: drup barcode sequence in output if set"`
+	Nogz        bool     `hflag:"--no-gzip, -n; default: false; usage: do not gzip output fastq file"`
 }
 
 func checkError(err error) {
@@ -231,53 +231,54 @@ func main() {
 		fout["Unknow"] = unfo
 	*/
 	mis := args.Mismatch
-	r, err := xopen.Ropen(args.Fqfile)
-	checkError(err)
-	defer r.Close()
 	seq := [4]string{}
-	linefo := 0
 	sms := make(map[string]int, len(barcode))
 	total := 0
-	for {
-		line, err := r.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
-		i := linefo % 4
-		seq[i] = line
-		// unknow := true
-		if i == 3 {
-		BCLOOP:
-			for b, sn := range barcode {
-				d := 0
-				for n, _ := range b {
-					if seq[1][n] != b[n] {
-						d++
-					}
-					if d > mis {
-						continue BCLOOP
-					}
-				}
-				// unknow = false
-				seq[1] = seq[1][drup_pos[b]:]
-				seq[3] = seq[3][drup_pos[b]:]
-				sms[sn] += 1
-				for _, line := range seq {
-					fout[sn].WriteString(line)
-				}
-				break BCLOOP
+	for _, fqfile := range args.Fqfile {
+		r, err := xopen.Ropen(fqfile)
+		checkError(err)
+		defer r.Close()
+		linefo := 0
+		for {
+			line, err := r.ReadString('\n')
+			if err == io.EOF {
+				break
 			}
-			/*
-				if unknow {
-					for _, line := range seq {
-						fout["Unknow"].WriteString(line)
+			i := linefo % 4
+			seq[i] = line
+			// unknow := true
+			if i == 3 {
+			BCLOOP:
+				for b, sn := range barcode {
+					d := 0
+					for n, _ := range b {
+						if seq[1][n] != b[n] {
+							d++
+						}
+						if d > mis {
+							continue BCLOOP
+						}
 					}
+					// unknow = false
+					seq[1] = seq[1][drup_pos[b]:]
+					seq[3] = seq[3][drup_pos[b]:]
+					sms[sn] += 1
+					for _, line := range seq {
+						fout[sn].WriteString(line)
+					}
+					break BCLOOP
 				}
-			*/
-			total += 1
-			seq = [4]string{}
+				/*
+				   if unknow {
+				       for _, line := range seq {
+				           fout["Unknow"].WriteString(line)
+				       }
+				   }
+				*/
+				total += 1
+			}
+			linefo++
 		}
-		linefo++
 	}
 	fmt.Println()
 	snm := 0
