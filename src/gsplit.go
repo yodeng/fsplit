@@ -13,6 +13,8 @@ import (
 	"github.com/shenwei356/xopen"
 )
 
+const VERSION = "v2022.06.02 15:00"
+
 type SplitFlags struct {
 	Fqfile      []string `hflag:"--input, -i; required; usage: input fastq file, *.gz/xz/zst or uncompress allowed, multi-input call be separated by ',', required"`
 	Barcodefile string   `hflag:"--barcode, -b; required; usage: barcode and sample file, required"`
@@ -21,6 +23,7 @@ type SplitFlags struct {
 	Output      string   `hflag:"--output, -o; required; usage: output directory, required"`
 	Drup        bool     `hflag:"--drup, -d; default: false; usage: drup barcode sequence in output if set"`
 	Nogz        bool     `hflag:"--no-gzip, -n; default: false; usage: do not gzip output fastq file"`
+	Version     bool     `hflag:"--version, -v; usage: show version and exit"`
 }
 
 func checkError(err error) {
@@ -178,9 +181,14 @@ func main() {
 	if err := hflag.Bind(args); err != nil {
 		panic(err)
 	}
-	if err := hflag.Parse(); err != nil {
-		fmt.Println(hflag.Usage())
-		panic(err)
+	err := hflag.Parse()
+	if args.Version {
+		fmt.Println(VERSION)
+		return
+	}
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	runtime.GOMAXPROCS(args.Threads)
