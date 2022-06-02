@@ -9,18 +9,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hpifu/go-kit/hflag"
-	"github.com/shenwei356/xopen"
+	"github.com/yodeng/go-kit/hflag"
+	"github.com/yodeng/xopen"
 )
 
 const VERSION = "v2022.06.02 15:00"
 
 type SplitFlags struct {
-	Fqfile      []string `hflag:"--input, -i; required; usage: input fastq file, *.gz/xz/zst or uncompress allowed, multi-input call be separated by ',', required"`
+	Fqfile      []string `hflag:"--input, -i; required; usage: input fastq file, *.gz/xz/zst or uncompress allowed, multi-input can be separated by ',' or whitespace, required"`
 	Barcodefile string   `hflag:"--barcode, -b; required; usage: barcode and sample file, required"`
+	Output      string   `hflag:"--output, -o; required; usage: output directory, required"`
 	Threads     int      `hflag:"--threads, -t; default: 10; usage: threads core, 10 by default"`
 	Mismatch    int      `hflag:"--mismatch, -m; default: 0; usage: mismatch allowed for barcode search, 0 by default"`
-	Output      string   `hflag:"--output, -o; required; usage: output directory, required"`
 	Drup        bool     `hflag:"--drup, -d; default: false; usage: drup barcode sequence in output if set"`
 	Nogz        bool     `hflag:"--no-gzip, -n; default: false; usage: do not gzip output fastq file"`
 	Version     bool     `hflag:"--version, -v; usage: show version and exit"`
@@ -118,7 +118,8 @@ func main() {
 	t := time.Now()
 	barcode := make(map[string]string, 10)
 
-	bcf, _ := xopen.Ropen(args.Barcodefile)
+	bcf, err := xopen.Ropen(args.Barcodefile)
+	checkError(err)
 	defer bcf.Close()
 
 	fout := make(map[string]*xopen.Writer, 10)
@@ -181,7 +182,12 @@ func main() {
 	if err := hflag.Bind(args); err != nil {
 		panic(err)
 	}
-	err := hflag.Parse()
+	err := hflag.AddDesc(fmt.Sprintf("for split fastq data from a mixed fastq by barcode/index of each sample. (version: %v)\n", VERSION))
+	err = hflag.Parse()
+	if len(os.Args) == 1 {
+		fmt.Println(hflag.Usage())
+		return
+	}
 	if args.Version {
 		fmt.Println(VERSION)
 		return
@@ -190,12 +196,12 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
 	runtime.GOMAXPROCS(args.Threads)
 	t := time.Now()
 	barcode := make(map[string]string, 10)
 
-	bcf, _ := xopen.Ropen(args.Barcodefile)
+	bcf, err := xopen.Ropen(args.Barcodefile)
+	checkError(err)
 	defer bcf.Close()
 
 	fout := make(map[string]*xopen.Writer, 10)
@@ -259,7 +265,7 @@ func main() {
 			BCLOOP:
 				for b, sn := range barcode {
 					d := 0
-					for n, _ := range b {
+					for n := range b {
 						if seq[1][n] != b[n] {
 							d++
 						}
