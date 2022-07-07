@@ -159,10 +159,11 @@ def main():
     total_seq = 0
     with MultiZipHandle(mode="wb", **outfile) as fh:
         with Zopen(infq, gzip=True) as fi:
-            seq = []
+            seq = [None] * 4
             for n, line in enumerate(fi):
-                seq.append(line)
-                if n % 4 == 3:
+                ni = n % 4
+                seq[ni] = line
+                if ni == 3:
                     for b, sn in barcode.items():
                         d = 0
                         for n, i in enumerate(b):
@@ -178,11 +179,10 @@ def main():
                             sms[sn] += 1
                             break
                     total_seq += 1
-                    seq = []
     logs.info("Success")
     sys.stdout.write("\n")
     sms["Unknow"] = total_seq - sum(sms.values())
-    for sn in sorted(barcode.values()):
+    for sn in sorted(set(barcode.values())):
         num = sms[sn]
         sys.stdout.write("%s: %d(%.2f%%)\n" %
                          (sn, num, round(num/float(total_seq)*100, 2)))

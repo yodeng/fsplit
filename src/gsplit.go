@@ -13,7 +13,7 @@ import (
 	"github.com/yodeng/xopen"
 )
 
-const VERSION = "v2022.06.02 15:00"
+const VERSION = "v2022.07.07 15:00"
 
 type SplitFlags struct {
 	Fqfile      []string `hflag:"--input, -i; required; usage: input fastq file, *.gz/xz/zst or uncompress allowed, multi-input can be separated by ',' or whitespace, required"`
@@ -34,7 +34,6 @@ func checkError(err error) {
 }
 
 func ReadSeq(ch1 chan []string, infile string) {
-
 	r, err := xopen.Ropen(infile)
 	checkError(err)
 	defer r.Close()
@@ -100,6 +99,20 @@ func isExist(path string) bool {
 		return false
 	}
 	return true
+}
+
+func strslice2map(sl []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(sl))
+	for _, v := range sl {
+		set[v] = struct{}{}
+	}
+	return set
+}
+
+func inSlice(sl []string, s string) bool {
+	m := strslice2map(sl)
+	_, ok := m[s]
+	return ok
 }
 
 /*  run channel for results in pool
@@ -225,19 +238,19 @@ func main() {
 		line_s := reg.Split(line, -1)
 		sn, bc := line_s[0], line_s[1]
 		barcode[bc] = sn
-		samples = append(samples, sn)
-		outf := args.Output + "/" + sn + ".fq"
-		if !args.Nogz {
-			outf += ".gz"
-		}
 		if args.Drup {
 			drup_pos[bc] = len(bc)
-		} else {
-			drup_pos[bc] = 0
 		}
-		fo, _ := xopen.Wopen(outf)
-		defer fo.Close()
-		fout[line_s[0]] = fo
+		if !inSlice(samples, sn) {
+			samples = append(samples, sn)
+			outf := args.Output + "/" + sn + ".fq"
+			if !args.Nogz {
+				outf += ".gz"
+			}
+			fo, _ := xopen.Wopen(outf)
+			defer fo.Close()
+			fout[line_s[0]] = fo
+		}
 	}
 	/*
 		unkonwfile := args.Output + "/" + "Unknow" + ".fq"
