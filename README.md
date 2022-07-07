@@ -32,8 +32,9 @@ pip install git+https://github.com/yodeng/fsplit.git
 
 需提前为fastq数据创建索引文件，加快程序运行速度。
 
-
 #### 1) fsplit index
+
+`1.0.3`之前版本采用索引多进程方式实现，`1.0.4`及以后版本不在需要索引。
 
 fastq文件创建fai索引文件，输出`test.fastq.fai`文件，自动识别`gzip`压缩格式。
 
@@ -48,6 +49,8 @@ fsplit index -i test.fastq.gz
 #### 2) fsplit split
 
 根据barcode序列，从fastq文件中拆分属于各样本的fastq数据。若fastq索引文件不存在，会先创建索引文件，然后运行split程序。
+
+`1.0.4`及以后版本不在需要索引，直接读取fastq并处理。
 
 `fsplit split --help`查看帮助：
 
@@ -138,3 +141,10 @@ S4  CCCCC   ACCCCCC
 + 新增屏幕输出logging日志记录
 + 优化fastq index步骤，采用稀疏索引，减小索引文件大小，加快读取速度
 + 采用互斥锁取代进程共享队列
+
+
+
+#### version 1.0.4
+
++ 单线程读取，子进程解压，处理后序列直接写入文件，取消建立索引步骤，取消多进程处理，取消文件互斥锁
++ `split`步骤同时添加`golang`实现[gsplit](src/gsplit.go).

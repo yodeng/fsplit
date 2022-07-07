@@ -17,8 +17,8 @@ const VERSION = "v2022.06.02 15:00"
 
 type SplitFlags struct {
 	Fqfile      []string `hflag:"--input, -i; required; usage: input fastq file, *.gz/xz/zst or uncompress allowed, multi-input can be separated by ',' or whitespace, required"`
-	Barcodefile string   `hflag:"--barcode, -b; required; usage: barcode and sample file, required"`
-	Output      string   `hflag:"--output, -o; required; usage: output directory, required"`
+	Barcodefile string   `hflag:"--barcode, -b; required; usage: barcode and sample file, 1st column for sample name and 2nd column for barcode sequence, required"`
+	Output      string   `hflag:"--output, -o; required; usage: output directory, will create if not exists, required"`
 	Threads     int      `hflag:"--threads, -t; default: 10; usage: threads core, 10 by default"`
 	Mismatch    int      `hflag:"--mismatch, -m; default: 0; usage: mismatch allowed for barcode search, 0 by default"`
 	Drup        bool     `hflag:"--drup, -d; default: false; usage: drup barcode sequence in output if set"`
@@ -217,8 +217,12 @@ func main() {
 		if err == io.EOF {
 			break
 		}
+		line = strings.TrimSpace(line)
+		if len(line) == 0 || strings.HasPrefix(line, "#") {
+			continue
+		}
 		reg := regexp.MustCompile(`\s+`)
-		line_s := reg.Split(strings.TrimSpace(line), -1)
+		line_s := reg.Split(line, -1)
 		sn, bc := line_s[0], line_s[1]
 		barcode[bc] = sn
 		samples = append(samples, sn)
