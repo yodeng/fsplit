@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/yodeng/go-kit/hflag"
@@ -73,9 +74,8 @@ func ReadSeq(ch1 chan []string, infile string) {
 	r, err := xopen.Ropen(infile)
 	checkError(err)
 	defer r.Close()
-	seq := make([]string, 4, 5)
-	n := 0
-	for {
+	seq := make([]string, 5, 5)
+	for n := 0; ; n++ {
 		line, err := r.ReadString('\n')
 		if err == io.EOF {
 			break
@@ -84,14 +84,14 @@ func ReadSeq(ch1 chan []string, infile string) {
 		seq[i] = line
 		if i == 3 {
 			ch1 <- seq
-			seq = make([]string, 4, 5)
+			seq = make([]string, 5, 5)
 		}
-		n++
 	}
 	close(ch1)
 }
 
-func SplitSeq(ch1, ch2 chan []string, exch1 chan bool, barcode map[string]string, mis int, drup bool) {
+func SplitSeq(ch1, ch2 chan []string, barcode map[string]string, mis int, drup bool, wg *sync.WaitGroup) {
+	defer wg.Done()
 	drup_pos := make(map[string]int, 10)
 	for k, _ := range barcode {
 		if drup {
@@ -115,12 +115,11 @@ func SplitSeq(ch1, ch2 chan []string, exch1 chan bool, barcode map[string]string
 			dp := drup_pos[b]
 			v[1] = v[1][dp:]
 			v[3] = v[3][dp:]
-			v = append(v, sn)
+			v[4] = sn
 			ch2 <- v
 			break bcloop
 		}
 	}
-	exch1 <- true
 }
 
 func isExist(path string) bool {
@@ -153,7 +152,7 @@ func inSlice(sl []string, s string) bool {
 
 /*  run channel for results in pool
 func main() {
-
+	var wg sync.WaitGroup
 	args := &SplitFlags{}
 	if err := hflag.Bind(args); err != nil {
 		panic(err)
@@ -196,31 +195,52 @@ func main() {
 		fout[line_s[0]] = fo
 	}
 
-	ch1 := make(chan []string, 10)
-	res := make(chan []string, 5)
-	exch := make(chan bool, 1)
+	ch1 := make(chan []string, 10000)
+	res := make(chan []string, 10000)
 
-	go ReadSeq(ch1, args.Fqfile)
-
-	for i := 1; i <= args.Threads; i++ {
-		go SplitSeq(ch1, res, exch, barcode, args.Mismatch, args.Drup)
+	for _, f := range args.Fqfile {
+		go ReadSeq(ch1, f)
 	}
 
+	for i := 1; i <= args.Threads; i++ {
+		wg.Add(1)
+		go SplitSeq(ch1, res, barcode, args.Mismatch, args.Drup, &wg)
+	}
 	go func() {
-		for i := 1; i <= args.Threads; i++ {
-			<-exch
-		}
+		wg.Wait()
 		close(res)
 	}()
 
-	for out := range res {
-		sn := out[4]
-		for _, line := range out[:4] {
-			fout[sn].WriteString(line)
-		}
+	// sms := map[string]int{}
 
+	var out sync.WaitGroup
+
+	locks := make(map[string]*sync.Mutex)
+	for _, sn := range barcode {
+		locks[sn] = &sync.Mutex{} // lock for each file writing
 	}
+
+	for i := 0; i < len(barcode); i++ {
+		out.Add(1)
+		go func() {
+			defer out.Done()
+			for out := range res {
+				sn := out[4]
+				locks[sn].Lock()
+				for _, line := range out[:4] {
+					fout[sn].WriteString(line)
+				}
+				// sms[sn] += 1  // conrutine write map error
+				locks[sn].Unlock()
+
+			}
+		}()
+	}
+	out.Wait()
 	d := time.Since(t)
+
+	// fmt.Println(sms)
+
 	fmt.Printf("Time elapse: %v sec.\n", d)
 }
 */
