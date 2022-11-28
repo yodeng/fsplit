@@ -114,44 +114,34 @@ class FastqIndex(object):
 
 
 def parseArg():
-    subargs = ["index", "split"]
-    main_parser = argparse.ArgumentParser(
-        description="split a mix fastq by barcode index.",)
-    mode_parser = main_parser.add_argument_group("Commands options")
-    mode_parser.add_argument("mode",  metavar="{%s}" % ",".join(
-        subargs), help="command to run.", choices=subargs)
-    args = main_parser.parse_args(sys.argv[1:2])
-    mode = args.mode
-    if mode == "index":
-        des = "index fastq file for reading in multi processing, can be instead by `samtools fqidx <fqfile>`."
-    else:
-        des = "split sequence data by barcode."
     parser = argparse.ArgumentParser(
-        description=des, prog=" ".join(sys.argv[0:2]))
-    general_parser = parser.add_argument_group("General options")
-    general_parser.add_argument("mode", metavar=mode, choices=subargs)
+        description="split a mix fastq by barcode index.",)
+    parser.add_argument("-v", '--version',
+                        action='version', version="v" + __version__)
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    general_parser = parent_parser.add_argument_group("common options")
     general_parser.add_argument("-i", "--input", type=str, help="input fastq file or BCL flowcell directory, required",
                                 required=True, metavar="<str>")
-    general_parser.add_argument('-v', '--version',
-                                action='version', version="v" + __version__)
-    if mode == "index":
-        parser_index = parser.add_argument_group("Options")
-    elif mode == "split":
-        parser_split = parser.add_argument_group("Options")
-        parser_split.add_argument("-b", "--barcode", type=str,
-                                  help='barcode and sample file, required', required=True, metavar="<file>")
-        parser_split.add_argument('-m', "--mismatch", help="mismatch allowed for barcode search, 0 by default",
-                                  type=int, default=0, metavar="<int>")
-        # parser_split.add_argument('-t', "--threads", help="threads core, 10 by default",
-        #                           type=int, default=10, metavar="<int>")
-        parser_split.add_argument('-o', "--output", help="output directory, required",
-                                  type=str, required=True, metavar="<str>")
-        parser_split.add_argument("-d", '--drup',   action='store_true',
-                                  help="drup barcode sequence in output if set",  default=False)
-        parser_split.add_argument('--bcl2fq', metavar="<str>",
-                                  help="bcl2fastq path if necessary, if not set, auto detected")
-        parser_split.add_argument("--output-gzip",   action='store_true',
-                                  help="gzip output fastq file, this will make your process slower", default=False)
+    subparsers = parser.add_subparsers(
+        title="commands", dest="mode", help="sub-command help")
+    parser_index = subparsers.add_parser(
+        'index', parents=[parent_parser],  help="index fastq file for reading in multi processing, can be instead by `samtools fqidx <fqfile>`.")
+    parser_split = subparsers.add_parser(
+        'split', parents=[parent_parser], help="split sequence data by barcode.")
+    parser_split.add_argument("-b", "--barcode", type=str,
+                              help='barcode and sample file, required', required=True, metavar="<file>")
+    parser_split.add_argument('-m', "--mismatch", help="mismatch allowed for barcode search, 0 by default",
+                              type=int, default=0, metavar="<int>")
+    # parser_split.add_argument('-t', "--threads", help="threads core, 10 by default",
+    #                           type=int, default=10, metavar="<int>")
+    parser_split.add_argument('-o', "--output", help="output directory, required",
+                              type=str, required=True, metavar="<str>")
+    parser_split.add_argument("-d", '--drup',   action='store_true',
+                              help="drup barcode sequence in output if set",  default=False)
+    parser_split.add_argument('--bcl2fq', metavar="<str>",
+                              help="bcl2fastq path if necessary, if not set, auto detected")
+    parser_split.add_argument("--output-gzip",   action='store_true',
+                              help="gzip output fastq file, this will make your process slower", default=False)
     return parser.parse_args()
 
 
