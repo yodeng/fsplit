@@ -4,7 +4,6 @@
 import os
 import multiprocessing as mp
 
-
 from collections import Counter
 
 from .src import *
@@ -110,14 +109,21 @@ def main():
         FastqIndex.createindex(args.input)
         return
     outdir = os.path.abspath(args.output)
-    if os.path.isdir(infq):
+    if args.mode == "bcl2fq":
         if os.path.isfile(os.path.join(infq, "RTAComplete.txt")):
-            bcl2fastq = args.bcl2fq or which("bcl2fastq") or os.path.join(
-                sys.prefix, "bin", "bcl2fastq")
-            if not os.path.isfile(bcl2fastq):
-                sys.exit("bcl2fastq not found, exists")
-            bcl = BCL(infq, outdir, args.barcode, args.threads,
-                      bcl2fastq=bcl2fastq, mis=args.mismatch)
+            bcl2fastq = args.bcl2fq or which("bcl2fastq")
+            if not (bcl2fastq and os.path.isfile(bcl2fastq)):
+                sys.exit("bcl2fastq not found, exit")
+            kw = {
+                "cpu": args.threads,
+                "bcl2fastq": bcl2fastq,
+                "mis": args.mismatch,
+                "bcl2fastq": bcl2fastq,
+                "rc_i7": args.rc_index1,
+                "rc_i5": args.rc_index2,
+                "print_cmd": False,
+            }
+            bcl = BCL(infq, outdir, args.sample, **kw)
             bcl.run()
             logs.info("Success")
             js = os.path.join(outdir, "Stats/Stats.json")

@@ -4,17 +4,20 @@ import json
 import logging
 import subprocess
 
-from .utils import which
+from .utils import *
 
 
 class BCL(object):
-    def __init__(self, fcdir, outdir, bcfile, cpu=60, bcl2fastq="", mis=1):
+    def __init__(self, fcdir, outdir, bcfile, cpu=60, bcl2fastq="", mis=1, rc_i7=False, rc_i5=False, print_cmd=False):
         self.fcdir = fcdir
         self.outdir = outdir
         self.bcfile = bcfile
         self.mis = str(mis)
         self.index = 1
         self.nproc = str(cpu)
+        self.rc_i7 = rc_i7
+        self.rc_i5 = rc_i5
+        self.print_cmd = print_cmd
         self.bcl2fastq = bcl2fastq or which("bcl2fastq")
         self.samplesheet = os.path.join(self.outdir, "sample-sheet.csv")
 
@@ -24,24 +27,28 @@ class BCL(object):
             for line in fi:
                 if not line.strip() or line.startswith("#"):
                     continue
-                line = line.split()
+                line = line.split()[:3]
                 if len(line) == 2:
                     self.index = 1
                     idx.append((line))
                 elif len(line) == 3:
                     self.index = 2
                     idx.append((line))
-                else:
-                    raise IOError("illegal barcode file %s" % self.bcfile)
+                # else:
+                #    raise IOError("illegal barcode file %s" % self.bcfile)
         if not os.path.isdir(self.outdir):
             os.makedirs(self.outdir)
         with open(self.samplesheet, "w") as fo:
             if self.index == 1:
-                fo.write("[Data]\nSample_ID,Sample_Name,index\n")
+                fo.write("[Data]\nSample_ID,index\n")
             else:
-                fo.write("[Data]\nSample_ID,Sample_Name,index,index2\n")
+                fo.write("[Data]\nSample_ID,index,index2\n")
             for line in idx:
-                fo.write(",".join([line[0]] + line) + "\n")
+                if self.rc_i7:
+                    line[1] = rc_seq(line[1])
+                if self.index == 2 and self.rc_i5:
+                    line[2] = rc_seq(line[2])
+                fo.write(",".join(line) + "\n")
 
     def make_bcl_cmd(self):
         cmd = [self.bcl2fastq, "-o", self.outdir, "-R", self.fcdir,
@@ -52,19 +59,13 @@ class BCL(object):
                "--sample-sheet", self.samplesheet]
         return " ".join(cmd)
 
-    @staticmethod
-    def call(cmd, run=True, verbose=False):
+    def call(self, cmd, run=True):
+        if self.print_cmd:
+            self.logs.info(cmd)
         if not run:
-            if verbose:
-                print(cmd)
             return
-        if verbose:
-            print(cmd)
-            subprocess.check_call(cmd, shell=True, stdout=sys.stdout,
-                                  stderr=sys.stderr)
-        else:
-            with open(os.devnull, "w") as fo:
-                subprocess.check_call(cmd, shell=True, stdout=fo, stderr=fo)
+        with open(os.devnull, "w") as fo:
+            subprocess.check_call(cmd, shell=True, stdout=fo, stderr=fo)
 
     def stats(self, j):
         with open(j) as fi:

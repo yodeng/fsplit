@@ -1,3 +1,5 @@
+$ cat README.md 
+
 # fsplit
 
 `fsplit`是用于根据`barcode`信息从`BCL`或`fastq`混合数据中拆分样本数据的软件。
@@ -74,40 +76,18 @@ fsplit index -i test.fastq.gz
 
 #### 参数说明
 
-使用`fsplit split`命令，拆分`bcl`数据，相关参数如下：
+使用`fsplit bcl2fq`命令，拆分`bcl`数据，相关参数如下：
 
-| 参数          | 描述                                                         |
-| ------------- | ------------------------------------------------------------ |
-| -i/--input    | 输入的BCL数据flowcell目录                                    |
-| -b/--barcode  | barcode信息文件，两列或三列，第一列为样本名，第二列和第三列为barcode信息 |
-| -m/--mismatch | barcode拆分时运行的错配碱基数，默认0，不允许错配，           |
-| -t/--threads  | 运行使用的cpu核数                                            |
-| -o/--output   | 结果输出目录，不存在会自动创建                               |
-| --bcl2fq      | 指定bcl2fastq软件路径，不指定会自动从$PATH或sys.prefix中查找 |
-
-
-
-#### single-end index barcode文件实例
-
-```
-S1  AAAAA
-S2  TTTTT
-S3  GGGGG
-S4  CCCCC
-```
-
-
-
-#### paired-end index barcode文件实例
-
-```
-S1  AAAAA   GAAAAAA
-S2  TTTTT   TGGGGGG
-S3  GGGGG   CTTTTTT
-S4  CCCCC   ACCCCCC
-```
-
-
+| 参数             | 描述                                                         |
+| ---------------- | ------------------------------------------------------------ |
+| -i/--input       | 输入的BCL数据flowcell目录                                    |
+| -s/--sample      | sample sheet信息文件，两列或三列，空白隔开，第一列为样本名，第二列为indel1(i7)序列，第三列为index2(i5)序列 |
+| -m/--mismatch    | barcode拆分时运行的错配碱基数，默认0，不允许错配，           |
+| -t/--threads     | 运行使用的cpu核数                                            |
+| -o/--output      | 结果输出目录，不存在会自动创建                               |
+| -rc1/--rc-index1 | 将index1(i7)序列反向互补                                     |
+| -rc2/--rc-index2 | 将index2(i5)序列反向互补                                     |
+| --bcl2fq         | 指定bcl2fastq软件路径，不指定会自动从$PATH或sys.prefix中查找 |
 
 
 
@@ -148,3 +128,9 @@ S4  CCCCC   ACCCCCC
 
 + 单线程读取，子进程解压，处理后序列直接写入文件，取消建立索引步骤，取消多进程处理，取消文件互斥锁
 + `split`步骤同时添加`golang`实现[gsplit](src/gsplit.go).
+
+
+
+#### version 1.0.5
+
++ 新增bcl2fq子命令封装bcl2fastq软件，用于bcl数据拆分

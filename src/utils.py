@@ -8,6 +8,8 @@ import shutil
 import logging
 import subprocess
 
+PY3 = sys.version[0] == "3"
+
 
 class MultiZipHandle(object):
     def __init__(self, mode="rb", **infiles):
@@ -79,30 +81,39 @@ def clean(*path):
             shutil.rmtree(p)
 
 
+if PY3:
+    TRANS = str.maketrans("ATGCRYMKSWHBVDN", "TACGYRKMSWDVBHN")
+else:
+    import string
+    TRANS = string.maketrans("ATGCRYMKSWHBVDN", "TACGYRKMSWDVBHN")
+
+
+def rc_seq(seq):
+    return seq.upper().translate(TRANS)[::-1]
+
+
 def which(program, paths=None):
+    ex = os.path.dirname(sys.executable)
     found_path = None
     fpath, fname = os.path.split(program)
-
     if fpath:
         program = canonicalize(program)
         if is_exe(program):
             found_path = program
-
     else:
+        if is_exe(os.path.join(ex, program)):
+            return os.path.join(ex, program)
         paths_to_search = []
-
         if isinstance(paths, (tuple, list)):
             paths_to_search.extend(paths)
         else:
             env_paths = os.environ.get("PATH", "").split(os.pathsep)
             paths_to_search.extend(env_paths)
-
         for path in paths_to_search:
             exe_file = os.path.join(canonicalize(path), program)
             if is_exe(exe_file):
                 found_path = exe_file
                 break
-
     return found_path
 
 
@@ -131,6 +142,6 @@ def timeRecord(func):
     def wrapper(*args, **kwargs):
         s = time.time()
         value = func(*args, **kwargs)
-        sys.stdout.write("\nTime elapse: %d sec.\n" % int(time.time() - s))
+        sys.stdout.write("Time elapse: %d sec.\n" % int(time.time() - s))
         return value
     return wrapper
