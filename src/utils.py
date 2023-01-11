@@ -8,6 +8,8 @@ import shutil
 import logging
 import subprocess
 
+from collections import defaultdict
+
 PY3 = sys.version[0] == "3"
 
 
@@ -136,6 +138,10 @@ def load_bcl_stats(j):
         out.append((sn, rdn))
     out.append(("Unknow", info["Undetermined"]["NumberReads"]))
     return out
+
+
+def nestdict():
+    return defaultdict(nestdict)
 
 
 def timeRecord(func):
