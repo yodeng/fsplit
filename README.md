@@ -1,5 +1,3 @@
-$ cat README.md 
-
 # fsplit
 
 `fsplit`是用于根据`barcode`信息从`BCL`或`fastq`混合数据中拆分样本数据的软件。
@@ -59,11 +57,13 @@ fsplit index -i test.fastq.gz
 | 参数          | 描述                                                         |
 | ------------- | ------------------------------------------------------------ |
 | -i/--input    | 输入的fastq文件                                              |
-| -b/--barcode  | barcode信息文件，两列，第一列为样本名，第二列为barcode序列。 |
+| -I/--Input    | 输入的paired fastq文件, read2                                |
+| -b/--barcode  | barcode信息文件，两列或三列，第一列为样本名，第二列为barcode1序列，第三列为barcode2序列 |
 | -m/--mismatch | barcode拆分时运行的错配碱基数，默认0，不允许错配             |
-| -t/--threads  | 拆分运行的cpu核数，默认10                                    |
 | -o/--output   | 结果输出目录，不存在会自动创建                               |
 | -d/--drup     | 输出结果中是否去除barcode序列，默认不去除                    |
+| -rc1/--rc-bc1 | 对barcode1进行反向互补查找                                   |
+| -rc2/--rc-bc2 | 对barcode2进行反向互补查找                                   |
 | --output-gzip | 输出gzip压缩的fastq文件，使用`python zlib`接口，会减慢运行速度。 |
 
 
@@ -134,3 +134,8 @@ fsplit index -i test.fastq.gz
 #### version 1.0.5
 
 + 新增bcl2fq子命令封装bcl2fastq软件，用于bcl数据拆分
+
+#### version 1.0.6
+
++ 新增split子命令对双端paired fastq拆分支持
+

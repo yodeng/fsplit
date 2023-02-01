@@ -91,7 +91,7 @@ else:
 
 
 def rc_seq(seq):
-    return seq.upper().translate(TRANS)[::-1]
+    return seq.encode().decode().upper().translate(TRANS)[::-1]
 
 
 def which(program, paths=None):

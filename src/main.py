@@ -140,51 +140,102 @@ def main():
         os.makedirs(outdir)
 
     barcode = {}
+    barcode_paired = {}
     # outfile = {"Unknow": os.path.join(outdir, "Unknow.fq")}
     outfile = {}
+    outfile_paired = {}
     with open(args.barcode) as fi:
         for line in fi:
             if not line.strip() or line.strip().startswith("#"):
                 continue
             line = line.split()
             sn, bc = line[0], line[1]
-            barcode[bc.encode()] = sn
-            outfile[sn] = os.path.join(outdir, sn+".fq")
+            bc1 = args.rc_bc1 and rc_seq(bc).encode() or bc.encode()
+            barcode[bc1] = sn
+            bc2 = len(line) == 3 and line[2] or bc
+            barcode_paired[bc1] = args.rc_bc2 and rc_seq(
+                bc2).encode() or bc2.encode()
+            if args.Input:
+                outfile[sn] = os.path.join(outdir, sn+".R1.fq")
+                outfile_paired[sn] = os.path.join(outdir, sn+".R2.fq")
+            else:
+                outfile[sn] = os.path.join(outdir, sn+".fq")
             if args.output_gzip:
                 outfile[sn] += ".gz"
-            if os.path.isfile(outfile[sn]):
-                os.remove(outfile[sn])
+                if sn in outfile_paired:
+                    outfile_paired[sn] += ".gz"
 
-    drup_pos = dict.fromkeys(barcode.keys(), 0)
+    drup_pos = dict.fromkeys(list(barcode.keys()) +
+                             list(barcode_paired.values()), 0)
     if args.drup:
-        for bc in barcode:
+        for bc in barcode.keys():
             drup_pos[bc] = len(bc)
+        for bcp in barcode_paired.values():
+            drup_pos[bcp] = len(bcp)
 
     mis = args.mismatch
     sms = Counter()
     total_seq = 0
-    with MultiZipHandle(mode="wb", **outfile) as fh:
-        with Zopen(infq, gzip=True) as fi:
-            seq = [None] * 4
-            for n, line in enumerate(fi):
-                ni = n % 4
-                seq[ni] = line
-                if ni == 3:
-                    for b, sn in barcode.items():
-                        d = 0
-                        for n, i in enumerate(b):
-                            if i != seq[1][n]:
-                                d += 1
-                            if d > mis:
+    if not args.Input:
+        with MultiZipHandle(mode="wb", **outfile) as fh:
+            with Zopen(infq, gzip=True) as fi:
+                seq = [None] * 4
+                for n, line in enumerate(fi):
+                    ni = n % 4
+                    seq[ni] = line
+                    if ni == 3:
+                        for b, sn in barcode.items():
+                            d = 0
+                            for n, i in enumerate(b):
+                                if i != seq[1][n]:
+                                    d += 1
+                                if d > mis:
+                                    break
+                            else:
+                                dp = drup_pos[b]
+                                seq[1] = seq[1][dp:]
+                                seq[3] = seq[3][dp:]
+                                fh[sn].writelines(seq)
+                                sms[sn] += 1
                                 break
-                        else:
-                            dp = drup_pos[b]
-                            seq[1] = seq[1][dp:]
-                            seq[3] = seq[3][dp:]
-                            fh[sn].writelines(seq)
-                            sms[sn] += 1
-                            break
-                    total_seq += 1
+                        total_seq += 1
+    else:
+        with MultiZipHandle(mode="wb", **outfile) as f1:
+            with MultiZipHandle(mode="wb", **outfile_paired) as f2:
+                seq1 = [None] * 4
+                seq2 = [None] * 4
+                with Zopen(infq, gzip=True) as fq1, Zopen(args.Input, gzip=True) as fq2:
+                    for n, line in enumerate(fq1):
+                        ni = n % 4
+                        seq1[ni] = line
+                        seq2[ni] = fq2.readline()
+                        if ni == 3:
+                            for b, sn in barcode.items():
+                                d = 0
+                                for n, i in enumerate(b):
+                                    if i != seq1[1][n]:
+                                        d += 1
+                                    if d > mis:
+                                        break
+                                else:
+                                    d2 = 0
+                                    b2 = barcode_paired[b]
+                                    for n, i in enumerate(b2):
+                                        if i != seq2[1][n]:
+                                            d2 += 1
+                                        if d2 > mis:
+                                            break
+                                    else:
+                                        seq1[1] = seq1[1][drup_pos[b]:]
+                                        seq1[3] = seq1[3][drup_pos[b]:]
+                                        seq2[1] = seq2[1][drup_pos[b2]:]
+                                        seq2[3] = seq2[3][drup_pos[b2]:]
+                                        f1[sn].writelines(seq1)
+                                        f2[sn].writelines(seq2)
+                                        sms[sn] += 1
+                                    break
+                            total_seq += 1
+
     logs.info("Success")
     sys.stdout.write("\n")
     sms["Unknow"] = total_seq - sum(sms.values())

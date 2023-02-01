@@ -127,15 +127,23 @@ def parseArg():
     parser_index = subparsers.add_parser(
         'index', parents=[parent_parser],  help="index fastq file for reading in multi processing, can be instead by `samtools fqidx <fqfile>`.")
     parser_split = subparsers.add_parser(
-        'split', parents=[parent_parser], help="split sequence data by barcode.")
+        'split', help="split sequence data by barcode.")
+    parser_split.add_argument("-i", "--input", type=str, help="input fastq file, required",
+                              required=True, metavar="<file>")
+    parser_split.add_argument("-I", "--Input", type=str, help="input paired fastq file",
+                              required=False, metavar="<file>")
     parser_split.add_argument("-b", "--barcode", type=str,
-                              help='sample and barcode sequence info, two columns like "sampleName barcodeSeq", required', required=True, metavar="<file>")
+                              help='sample and barcode sequence info, two or three columns like "sampleName barcodeSeq1 barcodeSeq2", required', required=True, metavar="<file>")
     parser_split.add_argument('-m', "--mismatch", help="mismatch allowed for barcode search, 0 by default",
                               type=int, default=0, metavar="<int>")
     parser_split.add_argument('-o', "--output", help="output directory, required",
                               type=str, required=True, metavar="<str>")
     parser_split.add_argument("-d", '--drup',   action='store_true',
                               help="drup barcode sequence in output if set",  default=False)
+    parser_split.add_argument("-rc1", "--rc-bc1", action="store_true", default=False,
+                              help='reverse complement barcode1 for search')
+    parser_split.add_argument("-rc2", "--rc-bc2", action="store_true", default=False,
+                              help='reverse complement barcode2 for search')
     parser_split.add_argument("--output-gzip",   action='store_true',
                               help="gzip output fastq file, this will make your process slower", default=False)
     parser_bcl2fq = subparsers.add_parser(
