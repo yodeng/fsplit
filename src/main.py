@@ -22,7 +22,7 @@ def main_idx_multi():
         return
     outdir = os.path.abspath(args.output)
     if os.path.isdir(infq):
-        if os.path.isfile(os.path.join(infq, "RTAComplete.txt")):
+        if os.path.isdir(os.path.join(infq, "Data")):
             bcl2fastq = args.bcl2fq or which("bcl2fastq") or os.path.join(
                 sys.prefix, "bin", "bcl2fastq")
             if not os.path.isfile(bcl2fastq):
