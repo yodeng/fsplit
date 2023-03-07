@@ -15,6 +15,7 @@ setup(
     name="fsplit",
     version=__version__,
     packages=["fsplit"],
+    package_data={"fsplit": ["gsplit", ]},
     package_dir={"fsplit": "src"},
     author="Deng Yong",
     author_email="yodeng@tju.edu.cn",
@@ -27,6 +28,7 @@ setup(
     entry_points={
         'console_scripts': [
             'fsplit = fsplit.main:main',
+            'gsplit = fsplit.main:gsplit',
         ]
     }
 )

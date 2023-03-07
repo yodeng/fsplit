@@ -14,7 +14,7 @@ import (
 	"github.com/yodeng/xopen"
 )
 
-const VERSION = "v2022.07.08 15:00"
+const VERSION = "v2023.03.04 15:00"
 
 type SplitFlags struct {
 	Fqfile      []string `hflag:"--input, -i; required; usage: input fastq file, *.gz/xz/zst or uncompress allowed, multi-input can be separated by ',' or whitespace, required"`
@@ -23,6 +23,7 @@ type SplitFlags struct {
 	Output      string   `hflag:"--output, -o; required; usage: output directory, will create if not exists, required"`
 	Threads     int      `hflag:"--threads, -t; default: 10; usage: threads core, 10 by default"`
 	Mismatch    int      `hflag:"--mismatch, -m; default: 0; usage: mismatch allowed for barcode search, 0 by default"`
+	Pos         int      `hflag:"--pos, -p; default: 1; usage: barcode position in sequence, first base by default"`
 	Drup        bool     `hflag:"--drup, -d; default: false; usage: drup barcode sequence in output if set"`
 	Nogz        bool     `hflag:"--no-gzip, -n; default: false; usage: do not gzip output fastq file"`
 	Version     bool     `hflag:"--version, -v; usage: show version and exit"`
@@ -68,6 +69,26 @@ BCLOOP:
 		break BCLOOP
 	}
 	return
+}
+
+func write_len_seq(seq *[4]string, pos int, out *xopen.Writer) {
+	if pos > 0 {
+		out.WriteString(seq[0])
+		out.WriteString(seq[1][:pos] + "\n")
+		out.WriteString(seq[2])
+		out.WriteString(seq[3][:pos] + "\n")
+	}
+
+}
+
+func clean_empty_file(files []string, l int) {
+	if l <= 0 {
+		for _, path := range files {
+			if isExist(path) {
+				os.Remove(path)
+			}
+		}
+	}
 }
 
 func ReadSeq(ch1 chan []string, infile string) {
@@ -280,7 +301,9 @@ func main() {
 		checkError(err)
 	}
 	drup_pos := make(map[string]int, 10)
+	bc_pos := args.Pos - 1
 	samples := []string{}
+	outfiles := make([]string, 0)
 	if args.Fqfile2 != nil {
 		if len(args.Fqfile2) != len(args.Fqfile) {
 			fmt.Println("Miss input fastq file of R1 or R2")
@@ -304,7 +327,7 @@ func main() {
 			barcode[line_s[2]] = sn
 		}
 		if args.Drup {
-			drup_pos[bc] = len(bc)
+			drup_pos[bc] = len(bc) + bc_pos
 		}
 		if !inSlice(samples, sn) {
 			samples = append(samples, sn)
@@ -321,13 +344,18 @@ func main() {
 				defer fo2.Close()
 				fout[sn] = append(fout[sn], []*xopen.Writer{fo1, fo2}...)
 			} else {
+				outf_0 := args.Output + "/" + sn + "_0.fq"
 				outf := args.Output + "/" + sn + ".fq"
 				if !args.Nogz {
 					outf += ".gz"
+					outf_0 += ".gz"
 				}
-				fo, _ := xopen.Wopen(outf)
-				defer fo.Close()
-				fout[sn] = append(fout[sn], fo)
+				fo1, _ := xopen.Wopen(outf_0)
+				defer fo1.Close()
+				fo2, _ := xopen.Wopen(outf)
+				defer fo2.Close()
+				fout[sn] = append(fout[sn], []*xopen.Writer{fo1, fo2}...)
+				outfiles = append(outfiles, outf_0)
 			}
 
 		}
@@ -360,9 +388,9 @@ func main() {
 				seq[i] = line
 				seq2[i] = line2
 				if i == 3 {
-					sn, b1 := splitSample(seq[1], barcode, mis)
+					sn, b1 := splitSample(seq[1][bc_pos:], barcode, mis)
 					if sn != "" {
-						b2 := splitBarcode(seq2[1], sample2barcode[sn], mis)
+						b2 := splitBarcode(seq2[1][bc_pos:], sample2barcode[sn], mis)
 						if b2 != "" {
 							seq[1] = seq[1][drup_pos[b1]:]
 							seq[3] = seq[3][drup_pos[b1]:]
@@ -394,18 +422,19 @@ func main() {
 					for b, sn := range barcode {
 						d := 0
 						for n := range b {
-							if seq[1][n] != b[n] {
+							if seq[1][bc_pos+n] != b[n] {
 								d++
 							}
 							if d > mis {
 								continue BCLOOP
 							}
 						}
+						write_len_seq(&seq, bc_pos, fout[sn][0])
 						seq[1] = seq[1][drup_pos[b]:]
 						seq[3] = seq[3][drup_pos[b]:]
 						sms[sn] += 1
 						for _, line := range seq {
-							fout[sn][0].WriteString(line)
+							fout[sn][1].WriteString(line)
 						}
 						break BCLOOP
 					}
@@ -415,6 +444,7 @@ func main() {
 			}
 		}
 	}
+	clean_empty_file(outfiles, bc_pos)
 	fmt.Println()
 	snm := 0
 	for _, sn := range samples {

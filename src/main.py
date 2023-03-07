@@ -247,5 +247,12 @@ def main():
         sms["Unknow"], round(sms["Unknow"]/float(total_seq)*100, 2)))
 
 
+def gsplit():
+    gsplit_exe = os.path.join(os.path.dirname(__file__), "gsplit")
+    if not os.path.isfile(gsplit_exe) or not os.access(gsplit_exe, os.R_OK | os.X_OK):
+        raise IOError("gsplit not implemented yet")
+    subprocess.check_call([gsplit_exe] + sys.argv[1:])
+
+
 if __name__ == "__main__":
     main()
