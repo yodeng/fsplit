@@ -8,6 +8,7 @@ from .utils import *
 
 
 class BCL(object):
+
     def __init__(self, fcdir, outdir, bcfile, cpu=60, bcl2fastq="", mis=1, rc_i7=False, rc_i5=False, print_cmd=False):
         self.fcdir = fcdir
         self.outdir = outdir
@@ -23,19 +24,30 @@ class BCL(object):
 
     def create_samplesheet(self):
         idx = []
+        ignore_index2 = None
         with open(self.bcfile) as fi:
             for line in fi:
                 if not line.strip() or line.startswith("#"):
                     continue
                 line = line.split()[:3]
                 if len(line) == 2:
+                    if not is_ambiguous_dna(line[1]):
+                        raise IOError("illegal barcode base %s" % line[1])
                     self.index = 1
                     idx.append((line))
                 elif len(line) == 3:
+                    if not is_ambiguous_dna(line[1]):
+                        raise IOError("illegal barcode base %s" % line[1])
+                    elif not is_ambiguous_dna(line[2]):
+                        ignore_index2 = 1
                     self.index = 2
                     idx.append((line))
                 # else:
                 #    raise IOError("illegal barcode file %s" % self.bcfile)
+        if ignore_index2:
+            self.logs.warn("ignore column 3 in barcode file, using one index")
+            idx = [i[:2] for i in idx[:]]
+            self.index = 1
         if not os.path.isdir(self.outdir):
             os.makedirs(self.outdir)
         with open(self.samplesheet, "w") as fo:

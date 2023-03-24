@@ -12,8 +12,11 @@ from collections import defaultdict
 
 PY3 = sys.version[0] == "3"
 
+ambiguous_dna_letters = "GATCRYWSMKHBVDN"
+
 
 class MultiZipHandle(object):
+
     def __init__(self, mode="rb", **infiles):
         self.info = infiles
         self.handler = {}
@@ -151,3 +154,10 @@ def timeRecord(func):
         sys.stdout.write("Time elapse: %d sec.\n" % int(time.time() - s))
         return value
     return wrapper
+
+
+def is_ambiguous_dna(seq):
+    for i in seq.upper():
+        if i not in ambiguous_dna_letters:
+            return False
+    return True
