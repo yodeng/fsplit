@@ -38,14 +38,15 @@ class BCL(object):
                 elif len(line) == 3:
                     if not is_ambiguous_dna(line[1]):
                         raise IOError("illegal barcode base %s" % line[1])
-                    elif not is_ambiguous_dna(line[2]):
+                    elif not is_ambiguous_dna(line[2]) or len(line[2]) < 6:
                         ignore_index2 = 1
                     self.index = 2
                     idx.append((line))
                 # else:
                 #    raise IOError("illegal barcode file %s" % self.bcfile)
         if ignore_index2:
-            self.logs.warn("ignore column 3 in barcode file, using one index")
+            self.logs.warning(
+                "ignore column 3 in barcode file, using one index")
             idx = [i[:2] for i in idx[:]]
             self.index = 1
         if not os.path.isdir(self.outdir):

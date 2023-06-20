@@ -141,9 +141,9 @@ def parseArg():
     parser_split.add_argument("-d", '--drup',   action='store_true',
                               help="drup barcode sequence in output if set",  default=False)
     parser_split.add_argument("-rc1", "--rc-bc1", action="store_true", default=False,
-                              help='reverse complement barcode1 for search')
+                              help='reverse complement barcode1')
     parser_split.add_argument("-rc2", "--rc-bc2", action="store_true", default=False,
-                              help='reverse complement barcode2 for search')
+                              help='reverse complement barcode2')
     parser_split.add_argument("--output-gzip",   action='store_true',
                               help="gzip output fastq file, this will make your process slower", default=False)
     parser_bcl2fq = subparsers.add_parser(

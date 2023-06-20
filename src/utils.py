@@ -5,6 +5,7 @@ import gzip
 import time
 import math
 import shutil
+import fnmatch
 import logging
 import subprocess
 
@@ -84,6 +85,23 @@ def clean(*path):
             os.remove(p)
         elif os.path.isdir(p):
             shutil.rmtree(p)
+
+
+def clean_fnmatch(directory, *patterns):
+    for root, dirnames, filenames in os.walk(directory, followlinks=False):
+        for pat in patterns:
+            for filename in fnmatch.filter(filenames, pat):
+                filepath = os.path.join(root, filename)
+                try:
+                    os.remove(filepath)
+                except:
+                    pass
+            for dirname in fnmatch.filter(dirnames, pat):
+                dirpath = os.path.join(root, dirname)
+                try:
+                    shutil.rmtree(dirpath)
+                except:
+                    pass
 
 
 if PY3:

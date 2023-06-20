@@ -82,7 +82,7 @@ fsplit index -i test.fastq.gz
 | ---------------- | ------------------------------------------------------------ |
 | -i/--input       | 输入的BCL数据flowcell目录                                    |
 | -s/--sample      | sample sheet信息文件，两列或三列，空白隔开，第一列为样本名，第二列为indel1(i7)序列，第三列为index2(i5)序列 |
-| -m/--mismatch    | barcode拆分时运行的错配碱基数，默认0，不允许错配，           |
+| -m/--mismatch    | barcode拆分时运行的错配碱基数，默认1，允许1个碱基错配        |
 | -t/--threads     | 运行使用的cpu核数                                            |
 | -o/--output      | 结果输出目录，不存在会自动创建                               |
 | -rc1/--rc-index1 | 将index1(i7)序列反向互补                                     |
@@ -138,4 +138,3 @@ fsplit index -i test.fastq.gz
 #### version 1.0.6
 
 + 新增split子命令对双端paired fastq拆分支持
-
