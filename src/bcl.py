@@ -70,7 +70,7 @@ class BCL(object):
                "--barcode-mismatches", self.mis,
                "-p", self.nproc,
                "--sample-sheet", self.samplesheet]
-        return " ".join(cmd)
+        return cmd
 
     def call(self, cmd, run=True):
         if self.print_cmd:
@@ -78,7 +78,8 @@ class BCL(object):
         if not run:
             return
         with open(os.devnull, "w") as fo:
-            subprocess.check_call(cmd, shell=True, stdout=fo, stderr=fo)
+            subprocess.check_call(cmd, shell=isinstance(
+                cmd, str) and True or False, stdout=fo, stderr=fo)
 
     def stats(self, j):
         with open(j) as fi:
