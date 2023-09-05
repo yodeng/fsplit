@@ -328,6 +328,8 @@ func main() {
 		}
 		if args.Drup {
 			drup_pos[bc] = len(bc) + bc_pos
+		} else {
+			drup_pos[bc] = bc_pos
 		}
 		if !inSlice(samples, sn) {
 			samples = append(samples, sn)
