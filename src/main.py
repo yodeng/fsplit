@@ -159,11 +159,19 @@ def main():
         sms["Unknow"], round(sms["Unknow"]/float(total_seq)*100, 2)))
 
 
+def _run_exe(name):
+    exe = os.path.join(os.path.dirname(__file__), name)
+    if not os.path.isfile(exe) or not os.access(exe, os.R_OK | os.X_OK):
+        raise IOError("%s not implemented yet" % name)
+    subprocess.check_call([exe] + sys.argv[1:])
+
+
 def gsplit():
-    gsplit_exe = os.path.join(os.path.dirname(__file__), "gsplit")
-    if not os.path.isfile(gsplit_exe) or not os.access(gsplit_exe, os.R_OK | os.X_OK):
-        raise IOError("gsplit not implemented yet")
-    subprocess.check_call([gsplit_exe] + sys.argv[1:])
+    _run_exe("gsplit")
+
+
+def gsplit_multi_barcode():
+    _run_exe("gsplit-multi-barcode")
 
 
 @timeRecord

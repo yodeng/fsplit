@@ -94,7 +94,7 @@ class Packages(object):
             license="MIT",
             packages=list(self._package_dir.keys()),
             package_dir=self._package_dir,
-            package_data={self.name: ["gsplit", ]},
+            package_data={self.name: ["gsplit*", ]},
             install_requires=self.requirements,
             python_requires='>=2.7.10, <=3.11',
             long_description=self.description,
@@ -114,6 +114,8 @@ class Packages(object):
         eps = [
             '{0} = {0}.main:main'.format(self.name),
             '{0} = {1}.main:{0}'.format("gsplit", self.name),
+            '{0} = {1}.main:{2}'.format(
+                "gsplit-multi-barcode", self.name, "gsplit_multi_barcode"),
         ]
         return eps
 
