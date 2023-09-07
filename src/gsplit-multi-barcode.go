@@ -15,7 +15,7 @@ import (
 	"github.com/yodeng/xopen"
 )
 
-const VERSION = "v2023.09.05 15:00"
+const VERSION = "v2023.09.06 15:00"
 
 type SplitFlags struct {
 	Fqfile      []string `hflag:"--input, -i; required; usage: input fastq file, *.gz/xz/zst or uncompress allowed, multi-input can be separated by ',' or whitespace, required"`
@@ -24,6 +24,8 @@ type SplitFlags struct {
 	Threads     int      `hflag:"--threads, -t; default: 10; usage: threads core, 10 by default"`
 	Mismatch    int      `hflag:"--mismatch, -m; default: 0; usage: mismatch allowed for barcode search, 0 by default"`
 	Split       int      `hflag:"--splitn, -s; default: 1; usage: split barcode output into N files, 1 by default"`
+	Trimleft    int      `hflag:"--left-trim, -l; default: 0; usage: trim N base in the first barcode output from left, 0 by default"`
+	Trimright   int      `hflag:"--right-trim, -r; default: 0; usage: trim N base in the last barcode output from right, 0 by default"`
 	Drup        bool     `hflag:"--drup, -d; default: false; usage: drup barcode sequence in output if set"`
 	Nogz        bool     `hflag:"--no-gzip, -n; default: false; usage: do not gzip output fastq file"`
 	Version     bool     `hflag:"--version, -v; usage: show version and exit"`
@@ -82,7 +84,7 @@ func write_seq(seq *[4]string, s int, e int, out *xopen.Writer) {
 	if e <= s && e > 0 {
 		return
 	}
-	if e >= len(seq[1]) || e == 0 {
+	if e == 0 || e >= len(seq[1]) {
 		out.WriteString(seq[0])
 		out.WriteString(seq[1][s:])
 		out.WriteString(seq[2])
@@ -244,6 +246,12 @@ func split_fq(args *SplitFlags) (samples []string, sms map[string]map[string]int
 			} else {
 				dp[b] = pos
 			}
+			if pos[0] == 0 {
+				dp[b] = [2]int{dp[b][0] + args.Trimleft, dp[b][1]}
+			}
+			if pos[1] == 0 {
+				dp[b] = [2]int{dp[b][0], -args.Trimright - 1}
+			}
 		}
 		barcode[sn] = bc_info
 		drup_pos[sn] = dp
@@ -304,6 +312,9 @@ func split_fq(args *SplitFlags) (samples []string, sms map[string]map[string]int
 					for b, _ := range bc {
 						s := drup_pos[sn][b][0]
 						e := drup_pos[sn][b][1]
+						if e < 0 {
+							e += len(seq[1])
+						}
 						bc_chunk_num := sms[sn][b] % args.Split
 						write_seq(&seq, s, e, fout[sn][b][bc_chunk_num])
 						sms[sn][b] += 1
