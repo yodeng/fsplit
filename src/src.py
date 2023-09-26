@@ -1,42 +1,7 @@
 #!/usr/bin/env python
 # coding:utf-8
 
-import os
-import sys
-import gzip
-import logging
-import argparse
-import subprocess
-
-from random import uniform
-
-from .version import __version__
-from .bcl import *
 from .utils import *
-
-
-class Zopen(object):
-    def __init__(self, name,  mode="rb", gzip=False):
-        self.name = name
-        self.mode = mode
-        self.gzip = gzip
-        self.handler = None
-
-    def __enter__(self):
-        if self.name.endswith(".gz"):
-            if self.gzip and "r" in self.mode:
-                p = subprocess.Popen(
-                    ["gzip", "-c", "-d", self.name], stdout=subprocess.PIPE)
-                self.handler = p.stdout
-            else:
-                self.handler = gzip.open(self.name, self.mode)
-        else:
-            self.handler = open(self.name, self.mode)
-        return self.handler
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.handler:
-            self.handler.close()
 
 
 class FastqIndex(object):
@@ -111,58 +76,6 @@ class FastqIndex(object):
     @property
     def logs(self):
         return logging.getLogger()
-
-
-def parseArg():
-    parser = argparse.ArgumentParser(
-        description="split a mix fastq or BCL by barcode index.",)
-    parser.add_argument("-v", '--version',
-                        action='version', version="v" + __version__)
-    parent_parser = argparse.ArgumentParser(add_help=False)
-    general_parser = parent_parser.add_argument_group("common options")
-    general_parser.add_argument("-i", "--input", type=str, help="input fastq file or BCL flowcell directory, required",
-                                required=True, metavar="<str>")
-    subparsers = parser.add_subparsers(
-        metavar="command", dest="mode")
-    parser_index = subparsers.add_parser(
-        'index', parents=[parent_parser],  help="index fastq file for reading in multi processing, can be instead by `samtools fqidx <fqfile>`.")
-    parser_split = subparsers.add_parser(
-        'split', help="split sequence data by barcode.")
-    parser_split.add_argument("-i", "--input", type=str, help="input fastq file, required",
-                              required=True, metavar="<file>")
-    parser_split.add_argument("-I", "--Input", type=str, help="input paired fastq file",
-                              required=False, metavar="<file>")
-    parser_split.add_argument("-b", "--barcode", type=str,
-                              help='sample and barcode sequence info, two or three columns like "sampleName barcodeSeq1 barcodeSeq2", required', required=True, metavar="<file>")
-    parser_split.add_argument('-m', "--mismatch", help="mismatch allowed for barcode search, 0 by default",
-                              type=int, default=0, metavar="<int>")
-    parser_split.add_argument('-o', "--output", help="output directory, required",
-                              type=str, required=True, metavar="<str>")
-    parser_split.add_argument("-d", '--drup',   action='store_true',
-                              help="drup barcode sequence in output if set",  default=False)
-    parser_split.add_argument("-rc1", "--rc-bc1", action="store_true", default=False,
-                              help='reverse complement barcode1')
-    parser_split.add_argument("-rc2", "--rc-bc2", action="store_true", default=False,
-                              help='reverse complement barcode2')
-    parser_split.add_argument("--output-gzip",   action='store_true',
-                              help="gzip output fastq file, this will make your process slower", default=False)
-    parser_bcl2fq = subparsers.add_parser(
-        'bcl2fq', parents=[parent_parser], help="split flowcell bcl data to fastq.")
-    parser_bcl2fq.add_argument('-t', "--threads", help="threads core, 10 by default",
-                               type=int, default=10, metavar="<int>")
-    parser_bcl2fq.add_argument("-s", "--sample", type=str,
-                               help='sample index file, two or three columns like "sample index1(i7) index2(i5)", required', required=True, metavar="<file>")
-    parser_bcl2fq.add_argument('-m', "--mismatch", help="mismatch allowed for barcode search, 1 by default",
-                               type=int, default=1, metavar="<int>")
-    parser_bcl2fq.add_argument('-o', "--output", help="output directory, required",
-                               type=str, required=True, metavar="<str>")
-    parser_bcl2fq.add_argument("-rc1", "--rc-index1", action="store_true", default=False,
-                               help='reverse complement index1(i7)')
-    parser_bcl2fq.add_argument("-rc2", "--rc-index2", action="store_true", default=False,
-                               help='reverse complement index2(i5)')
-    parser_bcl2fq.add_argument('--bcl2fq', metavar="<str>",
-                               help="bcl2fastq path if necessary, if not set, auto detected")
-    return parser.parse_args()
 
 
 def splitFastq(fq, s, e, outQ, barcode, mis=0, drup=False, outfile=None, filelock=None):

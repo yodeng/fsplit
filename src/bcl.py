@@ -1,15 +1,9 @@
-import os
-import sys
-import json
-import logging
-import subprocess
-
 from .utils import *
 
 
 class BCL(object):
 
-    def __init__(self, fcdir, outdir, bcfile, cpu=60, bcl2fastq="", mis=1, rc_i7=False, rc_i5=False, print_cmd=False):
+    def __init__(self, fcdir, outdir, bcfile, cpu=60, bcl2fastq="", mis=1, rc_i7=False, rc_i5=False, print_cmd=False, mode="auto", **kw):
         self.fcdir = fcdir
         self.outdir = outdir
         self.bcfile = bcfile
@@ -18,6 +12,7 @@ class BCL(object):
         self.nproc = str(cpu)
         self.rc_i7 = rc_i7
         self.rc_i5 = rc_i5
+        self.mode = mode
         self.print_cmd = print_cmd
         self.bcl2fastq = bcl2fastq or which("bcl2fastq")
         self.samplesheet = os.path.join(self.outdir, "sample-sheet.csv")
@@ -30,25 +25,36 @@ class BCL(object):
                 if not line.strip() or line.startswith("#"):
                     continue
                 line = line.split()[:3]
-                if len(line) == 2:
+                if len(line) < 2:
+                    raise IOError("illegal barcode input file")
+                elif len(line) == 2:
                     if not is_ambiguous_dna(line[1]):
                         raise IOError("illegal barcode base %s" % line[1])
                     self.index = 1
                     idx.append((line))
                 elif len(line) == 3:
-                    if not is_ambiguous_dna(line[1]):
-                        raise IOError("illegal barcode base %s" % line[1])
+                    if not is_ambiguous_dna(line[1]) or self.mode == "paired" and not is_ambiguous_dna(line[2]):
+                        raise IOError("illegal barcode base %s" % line)
                     elif not is_ambiguous_dna(line[2]) or len(line[2]) < 6:
                         ignore_index2 = 1
                     self.index = 2
                     idx.append((line))
                 # else:
                 #    raise IOError("illegal barcode file %s" % self.bcfile)
-        if ignore_index2:
-            self.logs.warning(
-                "ignore column 3 in barcode file, using one index")
-            idx = [i[:2] for i in idx[:]]
+        if self.mode == "single":
             self.index = 1
+            idx = [i[:2] for i in idx[:]]
+        elif self.mode == "paired":
+            self.index = 2
+            idx = [i[:3] for i in idx[:]]
+        else:
+            if ignore_index2:
+                self.logs.warning(
+                    "ignore column 3 in barcode file, using single index")
+                idx = [i[:2] for i in idx[:]]
+                self.index = 1
+        if len(sum(idx, [])) not in (len(idx) * 2, len(idx) * 3):
+            raise IOError("illegal barcode input file")
         if not os.path.isdir(self.outdir):
             os.makedirs(self.outdir)
         with open(self.samplesheet, "w") as fo:

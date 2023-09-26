@@ -1,12 +1,8 @@
 #!/usr/bin/env python
 # coding:utf-8
 
-import os
-import multiprocessing as mp
-
-from collections import Counter
-
 from .src import *
+from .bcl import *
 
 
 @timeRecord
@@ -17,11 +13,11 @@ def main():
     if not os.path.exists(infq):
         raise IOError("No such file or directory: %s" % infq)
     logs.info("start fsplit")
-    if args.mode == "index":
+    if args.command == "index":
         FastqIndex.createindex(args.input)
         return
     outdir = os.path.abspath(args.output)
-    if args.mode == "bcl2fq":
+    if args.command == "bcl2fq":
         if os.path.isdir(os.path.join(infq, "Data/Intensities/BaseCalls")):
             bcl2fastq = args.bcl2fq or which("bcl2fastq")
             if not (bcl2fastq and os.path.isfile(bcl2fastq)):
@@ -33,6 +29,7 @@ def main():
                 "bcl2fastq": bcl2fastq,
                 "rc_i7": args.rc_index1,
                 "rc_i5": args.rc_index2,
+                "mode": args.mode,
                 "print_cmd": False,
             }
             bcl = BCL(infq, outdir, args.sample, **kw)
@@ -159,19 +156,12 @@ def main():
         sms["Unknow"], round(sms["Unknow"]/float(total_seq)*100, 2)))
 
 
-def _run_exe(name):
-    exe = os.path.join(os.path.dirname(__file__), name)
-    if not os.path.isfile(exe) or not os.access(exe, os.R_OK | os.X_OK):
-        raise IOError("%s not implemented yet" % name)
-    subprocess.check_call([exe] + sys.argv[1:])
-
-
 def gsplit():
-    _run_exe("gsplit")
+    run_exe("gsplit")
 
 
 def gsplit_multi_barcode():
-    _run_exe("gsplit-multi-barcode")
+    run_exe("gsplit-multi-barcode")
 
 
 @timeRecord
@@ -182,7 +172,7 @@ def main_idx_multi():
     if not os.path.exists(infq):
         raise IOError("No such file or directory: %s" % infq)
     logs.info("start fsplit")
-    if args.mode == "index":
+    if args.command == "index":
         FastqIndex.createindex(args.input)
         return
     outdir = os.path.abspath(args.output)
