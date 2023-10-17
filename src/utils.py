@@ -43,6 +43,7 @@ class MultiZipHandle(object):
 
 
 class Zopen(object):
+
     def __init__(self, name,  mode="rb", gzip=False):
         self.name = name
         self.mode = mode

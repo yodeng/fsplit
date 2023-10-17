@@ -32,7 +32,7 @@ class BCL(object):
                         raise IOError("illegal barcode base %s" % line[1])
                     self.index = 1
                     idx.append((line))
-                elif len(line) == 3:
+                elif len(line) >= 3:
                     if not is_ambiguous_dna(line[1]) or self.mode == "paired" and not is_ambiguous_dna(line[2]):
                         raise IOError("illegal barcode base %s" % line)
                     elif not is_ambiguous_dna(line[2]) or len(line[2]) < 6:
@@ -43,17 +43,15 @@ class BCL(object):
                 #    raise IOError("illegal barcode file %s" % self.bcfile)
         if self.mode == "single":
             self.index = 1
-            idx = [i[:2] for i in idx[:]]
         elif self.mode == "paired":
             self.index = 2
-            idx = [i[:3] for i in idx[:]]
         else:
             if ignore_index2:
                 self.logs.warning(
                     "ignore column 3 in barcode file, using single index")
-                idx = [i[:2] for i in idx[:]]
                 self.index = 1
-        if len(sum(idx, [])) not in (len(idx) * 2, len(idx) * 3):
+        idx = [i[:self.index+1] for i in idx[:]]
+        if len(sum(idx, [])) != len(idx) * (self.index+1):
             raise IOError("illegal barcode input file")
         if not os.path.isdir(self.outdir):
             os.makedirs(self.outdir)
@@ -83,9 +81,8 @@ class BCL(object):
             self.logs.info(cmd)
         if not run:
             return
-        with open(os.devnull, "w") as fo:
-            subprocess.check_call(cmd, shell=isinstance(
-                cmd, str) and True or False, stdout=fo, stderr=fo)
+        subprocess.check_call(cmd, shell=isinstance(
+            cmd, str) and True or False, stdout=-3, stderr=-2)
 
     def stats(self, j):
         with open(j) as fi:
