@@ -17,6 +17,8 @@ requirements:
         - python
         - pip
     run:
+        - python
+        - pip
         - bcl2fastq
 
 about:
