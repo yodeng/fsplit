@@ -3,7 +3,7 @@ from .utils import *
 
 class BCL(object):
 
-    def __init__(self, fcdir, outdir, bcfile, cpu=60, bcl2fastq="", mis=1, rc_i7=False, rc_i5=False, print_cmd=False, mode="auto", **kw):
+    def __init__(self, fcdir, outdir, bcfile, cpu=60, bcl2fastq="", mis=1, rc_i7=False, rc_i5=False, mode="auto", logfile=None, **kw):
         self.fcdir = fcdir
         self.outdir = outdir
         self.bcfile = bcfile
@@ -13,7 +13,7 @@ class BCL(object):
         self.rc_i7 = rc_i7
         self.rc_i5 = rc_i5
         self.mode = mode
-        self.print_cmd = print_cmd
+        self.logfile = logfile
         self.bcl2fastq = bcl2fastq or which("bcl2fastq")
         self.samplesheet = os.path.join(self.outdir, "sample-sheet.csv")
 
@@ -77,12 +77,17 @@ class BCL(object):
         return cmd
 
     def call(self, cmd, run=True):
-        if self.print_cmd:
-            self.logs.info(cmd)
+        self.logs.debug(cmd)
         if not run:
             return
-        subprocess.check_call(cmd, shell=isinstance(
-            cmd, str) and True or False, stdout=-3, stderr=-2)
+        try:
+            out = sys.stdout
+            if self.logfile:
+                out = open(self.logfile, "a")
+            subprocess.check_call(cmd, shell=isinstance(
+                cmd, str) and True or False, stdout=out if self.logs.level == 10 else -3, stderr=-2)
+        finally:
+            out.close()
 
     def stats(self, j):
         with open(j) as fi:
@@ -103,7 +108,7 @@ class BCL(object):
         # self.logs.info(cmd)
         self.logs.info("start bcl2fastq.")
         self.call(cmd, run=True)
-        #sms = self.stats(os.path.join(self.outdir, "Stats/Stats.json"))
+        # sms = self.stats(os.path.join(self.outdir, "Stats/Stats.json"))
         # self.logs.info(sms)
         # self.logs.info("Success")
 

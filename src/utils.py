@@ -90,7 +90,7 @@ def log(logfile=None, level="info"):
     if logfile is None:
         h = logging.StreamHandler(sys.stdout)
     else:
-        h = logging.FileHandler(logfile, mode='w')
+        h = logging.FileHandler(logfile, mode='a')
     h.setFormatter(f)
     logger.addHandler(h)
     return logger
@@ -228,6 +228,10 @@ def parseArg():
     general_parser = parent_parser.add_argument_group("common options")
     general_parser.add_argument("-i", "--input", type=str, help="input fastq file or BCL flowcell directory, required",
                                 required=True, metavar="<str>")
+    general_parser.add_argument('--debug', action='store_true',
+                                help='logging debug', default=False)
+    general_parser.add_argument('--log', type=str,
+                                help='append log to file, stdout by default', metavar="<file>")
     subparsers = parser.add_subparsers(
         metavar="command", dest="command")
     parser_index = subparsers.add_parser(

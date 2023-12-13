@@ -7,8 +7,10 @@ from .bcl import *
 
 @timeRecord
 def main():
-    logs = log()
     args = parseArg()
+    logs = log(logfile=args.log)
+    if args.debug:
+        logs.setLevel(logging.DEBUG)
     infq = args.input
     if not os.path.exists(infq):
         raise IOError("No such file or directory: %s" % infq)
@@ -26,11 +28,10 @@ def main():
                 "cpu": args.threads,
                 "bcl2fastq": bcl2fastq,
                 "mis": args.mismatch,
-                "bcl2fastq": bcl2fastq,
                 "rc_i7": args.rc_index1,
                 "rc_i5": args.rc_index2,
                 "mode": args.mode,
-                "print_cmd": False,
+                "logfile": args.log,
             }
             bcl = BCL(infq, outdir, args.sample, **kw)
             bcl.run()
@@ -168,6 +169,8 @@ def gsplit_multi_barcode():
 def main_idx_multi():
     logs = log()
     args = parseArg()
+    if args.debug:
+        logs.setLevel(logging.DEBUG)
     infq = args.input
     if not os.path.exists(infq):
         raise IOError("No such file or directory: %s" % infq)
