@@ -20,8 +20,8 @@ const VERSION = "v2023.12.28 15:00"
 type SplitFlags struct {
 	Fqfile      []string `hflag:"--input, -i; required; usage: input fastq file, *.gz/xz/zst or uncompress allowed, multi-input can be separated by ',' or whitespace, required"`
 	Barcodefile string   `hflag:"--barcode, -b; required; usage: barcode and sample file, 'samplename barcode1 barcode1_pos barcode2 barcode2_pos ...', required"`
-	Pos         string   `hflag:"--pos, -p; usage: barcode parts pos info"`
 	Output      string   `hflag:"--output, -o; required; usage: output directory, will create if not exists, required"`
+	Pos         string   `hflag:"--pos, -p; usage: barcode parts pos info file"`
 	Threads     int      `hflag:"--threads, -t; default: 10; usage: threads core, 10 by default"`
 	Mismatch    int      `hflag:"--mismatch, -m; default: 0; usage: mismatch allowed for barcode search, 0 by default"`
 	Split       int      `hflag:"--splitn, -s; default: 1; usage: split barcode output into N files, 1 by default"`
@@ -86,13 +86,13 @@ func write_seq(seq *[4]string, s int, e int, b string, p int, out *xopen.Writer)
 		return
 	}
 	if length := len(seq[1]); e == 0 || e >= length {
-		name := fmt.Sprintf("%v barcode:%v,part:%d,pos:%d-%d\n", strings.TrimSpace(seq[0]), b, p+1, s+1, len(seq[1])+1)
+		name := fmt.Sprintf("%s barcode:%s;part:%d;pos:%d-%d\n", strings.TrimSpace(seq[0]), b, p+1, s+1, len(seq[1])+1)
 		out.WriteString(name)
 		out.WriteString(seq[1][s:])
 		out.WriteString(seq[2])
 		out.WriteString(seq[3][s:])
 	} else {
-		name := fmt.Sprintf("%v barcode:%v,part:%d,pos:%d-%d\n", strings.TrimSpace(seq[0]), b, p+1, s+1, e+1)
+		name := fmt.Sprintf("%s barcode:%s;part:%d;pos:%d-%d\n", strings.TrimSpace(seq[0]), b, p+1, s+1, e+1)
 		out.WriteString(name)
 		out.WriteString(seq[1][s:e] + "\n")
 		out.WriteString(seq[2])
@@ -341,10 +341,10 @@ func split_fq(args *SplitFlags) (samples []string, sms map[string]map[string]map
 			sms[sn] = make(map[string]map[int]int)
 			fo := make(map[string]map[int][]*xopen.Writer, 10)
 			bn := 0
-			for bc, _ := range bc_info {
+			for _, bc := range bc_list {
 				sms[sn][bc] = make(map[int]int)
 				fop := make(map[int][]*xopen.Writer, 10)
-				for p, _ := range bc_parts_pos[bc] {
+				for p, _ := range bc_list {
 					for n := 0; n < args.Split; n++ {
 						outf := args.Output + "/" + sn + fmt.Sprintf("_b%d_part%d_%05d", bn+1, p+1, n+1) + ".fq"
 						if !args.Nogz {
