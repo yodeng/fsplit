@@ -85,7 +85,7 @@ class BCL(object):
             if self.logfile:
                 out = open(self.logfile, "a")
             subprocess.check_call(cmd, shell=isinstance(
-                cmd, str) and True or False, stdout=out if self.logs.level == 10 else -3, stderr=-2)
+                cmd, str), stdout=out if self.logs.level == 10 else -3, stderr=-2)
         finally:
             out.close()
 
