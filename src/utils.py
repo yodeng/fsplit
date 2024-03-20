@@ -224,20 +224,21 @@ def parseArg():
         description="split a mix fastq or BCL by barcode index.",)
     parser.add_argument("-v", '--version',
                         action='version', version="v" + __version__)
-    parent_parser = argparse.ArgumentParser(add_help=False)
-    general_parser = parent_parser.add_argument_group("common options")
-    general_parser.add_argument("-i", "--input", type=str, help="input fastq file or BCL flowcell directory, required",
+    parent1_parser = argparse.ArgumentParser(add_help=False)
+    parent1_parser.add_argument("-i", "--input", type=str, help="input fastq file or BCL flowcell directory, required",
                                 required=True, metavar="<str>")
-    general_parser.add_argument('--debug', action='store_true',
-                                help='logging debug', default=False)
-    general_parser.add_argument('--log', type=str,
-                                help='append log to file, stdout by default', metavar="<file>")
+    parent2_parser = argparse.ArgumentParser(add_help=False)
+    parent2_grp = parent2_parser.add_argument_group("logging arguments")
+    parent2_grp.add_argument('--debug', action='store_true',
+                             help='logging debug', default=False)
+    parent2_grp.add_argument('--log', type=str,
+                             help='append log to file, stdout by default', metavar="<file>")
     subparsers = parser.add_subparsers(
         metavar="command", dest="command")
     parser_index = subparsers.add_parser(
-        'index', parents=[parent_parser],  help="index fastq file for reading in multi processing, can be instead by `samtools fqidx <fqfile>`.")
+        'index', parents=[parent1_parser, parent2_parser],  help="index fastq file for reading in multi processing, can be instead by `samtools fqidx <fqfile>`.")
     parser_split = subparsers.add_parser(
-        'split', help="split sequence data by barcode.")
+        'split', parents=[parent2_parser], help="split sequence data by barcode.")
     parser_split.add_argument("-i", "--input", type=str, help="input fastq file, required",
                               required=True, metavar="<file>")
     parser_split.add_argument("-I", "--Input", type=str, help="input paired fastq file",
@@ -257,7 +258,7 @@ def parseArg():
     parser_split.add_argument("--output-gzip",   action='store_true',
                               help="gzip output fastq file, this will make your process slower", default=False)
     parser_bcl2fq = subparsers.add_parser(
-        'bcl2fq', parents=[parent_parser], help="split flowcell bcl data to fastq.")
+        'bcl2fq', parents=[parent1_parser, parent2_parser], help="split flowcell bcl data to fastq.")
     parser_bcl2fq.add_argument('-t', "--threads", help="threads core, 10 by default",
                                type=int, default=10, metavar="<int>")
     parser_bcl2fq.add_argument("-s", "--sample", type=str,
